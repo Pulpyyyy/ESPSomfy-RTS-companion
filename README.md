@@ -85,6 +85,25 @@ Every command the board sees (from Home Assistant, a physical remote or its web 
 
 `source` says where the command came from: `remote` (a physical remote), `internal` (the board's interface) or `group` (a group command). `command` is the action: `Up`, `Down`, `My`, `StepUp`, `StepDown`, `Prog`, or a key combination (`My+Up`, `My+Down`, `Up+Down`, `My+Up+Down`).
 
+## Device triggers
+
+To start an automation without listening for the raw event, use the device trigger **A shade received a command** (Settings > Automations > New automation > Add trigger > Device). It fires when the board sees a command for that shade, from Home Assistant or from a physical remote. The command and its source are on `trigger.event.data`.
+
+```yaml
+triggers:
+  - trigger: device
+    domain: espsomfy_rts_companion
+    device_id: <your shade device>
+    entity_id: <your cover entity>
+    type: command_received
+actions:
+  - action: notify.notify
+    data:
+      message: >-
+        {{ trigger.event.data.name }}: {{ trigger.event.data.command }}
+        (from {{ trigger.event.data.source }})
+```
+
 ## Credits
 
 This integration started from xkain's [ESPSomfy-RTS Enhanced](https://github.com/xkain/ESPSomfy-RTS-enhanced), itself based on rstrouse's [ESPSomfy-RTS-HA](https://github.com/rstrouse/ESPSomfy-RTS-HA).

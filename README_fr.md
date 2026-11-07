@@ -85,6 +85,25 @@ Chaque commande vue par la carte (depuis Home Assistant, une télécommande phys
 
 `source` indique l'origine : `remote` (télécommande physique), `internal` (interface de la carte) ou `group` (commande de groupe). `command` est l'action : `Up`, `Down`, `My`, `StepUp`, `StepDown`, `Prog`, ou une combinaison de touches (`My+Up`, `My+Down`, `Up+Down`, `My+Up+Down`).
 
+## Déclencheurs d'appareil
+
+Pour lancer une automatisation sans écouter l'événement brut, utilisez le déclencheur d'appareil **Un volet a reçu une commande** (Paramètres > Automatisations > Nouvelle automatisation > Ajouter un déclencheur > Appareil). Il se déclenche quand la carte voit une commande pour ce volet, depuis Home Assistant ou une télécommande physique. La commande et sa source sont dans `trigger.event.data`.
+
+```yaml
+triggers:
+  - trigger: device
+    domain: espsomfy_rts_companion
+    device_id: <votre appareil volet>
+    entity_id: <votre entité cover>
+    type: command_received
+actions:
+  - action: notify.notify
+    data:
+      message: >-
+        {{ trigger.event.data.name }} : {{ trigger.event.data.command }}
+        (depuis {{ trigger.event.data.source }})
+```
+
 ## Crédits
 
 Cette intégration est partie d'[ESPSomfy-RTS Enhanced](https://github.com/xkain/ESPSomfy-RTS-enhanced) de xkain, elle-même issue d'[ESPSomfy-RTS-HA](https://github.com/rstrouse/ESPSomfy-RTS-HA) de rstrouse.
