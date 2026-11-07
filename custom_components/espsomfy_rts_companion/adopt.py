@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -37,14 +36,26 @@ def previous_entry(hass: HomeAssistant, board_unique_id: str | None) -> ConfigEn
     return None
 
 
-def _move_device_kwargs(
-    devices: dr.DeviceRegistry, new_entry_id: str, old_entry_id: str
-) -> dict[str, Any]:
-    """Arguments that move a device to another config entry on this release."""
+def _move_device(
+    devices: dr.DeviceRegistry,
+    device_id: str,
+    identifiers: set[tuple[str, str]],
+    new_entry_id: str,
+    old_entry_id: str,
+) -> None:
+    """Give a device its new identifiers and move it to another config entry."""
     if "new_config_entry_id" in inspect.signature(devices.async_update_device).parameters:
-        return {"new_config_entry_id": new_entry_id}
-    # Before Home Assistant 2026.11, a move is an add and a remove.
-    return {"add_config_entry_id": new_entry_id, "remove_config_entry_id": old_entry_id}
+        devices.async_update_device(
+            device_id, new_identifiers=identifiers, new_config_entry_id=new_entry_id
+        )
+        return
+    # Older releases move a device by adding the new entry, then removing the
+    # old one. In two calls: in a single one, the removal starts again from the
+    # device as it was and drops the entry just added.
+    devices.async_update_device(
+        device_id, new_identifiers=identifiers, add_config_entry_id=new_entry_id
+    )
+    devices.async_update_device(device_id, remove_config_entry_id=old_entry_id)
 
 
 async def async_adopt_previous(
@@ -78,7 +89,6 @@ async def _async_adopt_entry(hass: HomeAssistant, entry: ConfigEntry, old: Confi
         moved_entities += 1
 
     devices = dr.async_get(hass)
-    move = _move_device_kwargs(devices, entry.entry_id, old.entry_id)
     moved_devices = 0
     for device in dr.async_entries_for_config_entry(devices, old.entry_id):
         identifiers = {
@@ -93,7 +103,7 @@ async def _async_adopt_entry(hass: HomeAssistant, entry: ConfigEntry, old: Confi
             ):
                 entities.async_update_entity(reg_entry.entity_id, device_id=device.id)
             devices.async_remove_device(duplicate.id)
-        devices.async_update_device(device.id, new_identifiers=identifiers, **move)
+        _move_device(devices, device.id, identifiers, entry.entry_id, old.entry_id)
         moved_devices += 1
 
     # Nothing is left on the earlier entry, removing it only drops the entry.
