@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-import glob
 import logging
-import os
 
 from packaging.version import Version, parse as version_parse
 
@@ -31,16 +29,6 @@ SVC_REBOOT = "reboot"
 SVC_BACKUP = "backup"
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _rotate_backups(backup_dir: str, keep: int) -> None:
-    """Keep only the most recent `keep` files (blocking, run in executor)."""
-    if not os.path.exists(backup_dir):
-        return
-    files = glob.glob(os.path.join(backup_dir, "*.backup"))
-    files.sort(key=os.path.getmtime, reverse=True)
-    for file_path in files[keep:]:
-        os.remove(file_path)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -153,28 +141,16 @@ class ESPSomfyButton(ESPSomfyEntity, ButtonEntity):
         if is_backup and self._controller.connectivity is False:
             raise self._backup_failed()
 
-        # 2. Run the requested action (reboot or backup)
-        if "service" in self._action:
+        # 2. Run the requested action. A backup also keeps the configured
+        # number of copies; create_backup() already logged why it failed.
+        if is_backup:
+            if not await self._controller.async_backup():
+                raise self._backup_failed()
+        elif "service" in self._action:
             await self._controller.api.put_command(self._action["service"], data)
         elif "apimethod" in self._action:
             method = getattr(self._controller.api, self._action["apimethod"])
-            # create_backup() already logged why it failed.
-            if await method() is False and is_backup:
-                raise self._backup_failed()
-
-        # 3. Only after a backup was written: keep at most the configured
-        # number of files. The directory comes from the API
-        # (ESPSomfyRTS_<serverId>), the very one create_backup() writes to.
-        if is_backup:
-            try:
-                await self.hass.async_add_executor_job(
-                    _rotate_backups,
-                    self._controller.api.backup_dir,
-                    self._controller.max_backups,
-                )
-            except OSError as ex:
-                _LOGGER.warning("Could not rotate backup files: %s", ex)
-            await self._controller.async_update_backup_info()
+            await method()
 
     def _backup_failed(self) -> HomeAssistantError:
         """Build the error raised when a backup could not be written."""

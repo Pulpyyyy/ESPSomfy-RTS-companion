@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import contextlib
 from datetime import datetime
 import glob
@@ -17,13 +18,14 @@ from packaging.version import parse as version_parse
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PIN, CONF_USERNAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     aiohttp_client,
     device_registry as dr,
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -46,6 +48,7 @@ from .const import (
     EVT_CONNECTED,
     EVT_ETHERNET,
     EVT_FWSTATUS,
+    EVT_GROUPADDED,
     EVT_GROUPREMOVED,
     EVT_GROUPSTATE,
     EVT_HTTPPROBE,
@@ -75,6 +78,8 @@ PROBE_INTERVAL = 60
 # Rooms, groups and radio statistics are read again every this many probes.
 ORGANIZATION_REFRESH_PROBES = 5
 PROBE_TIMEOUT = 5
+# Seconds between a shade or group added on the board and the reload.
+RELOAD_DELAY = 5
 
 # The backup holds the WiFi passphrase in clear text, the device needs it to
 # restore itself, so both the directory and the files stay owner readable only.
@@ -94,6 +99,16 @@ def _prepare_backup_dir(path: str) -> None:
 def _open_private(path: str, flags: int) -> int:
     """Open a backup file with owner-only permissions."""
     return os.open(path, flags, BACKUP_FILE_MODE)
+
+
+def _rotate_backups(backup_dir: str, keep: int) -> None:
+    """Keep only the most recent `keep` files (blocking, run in executor)."""
+    if not os.path.exists(backup_dir):
+        return
+    files = glob.glob(os.path.join(backup_dir, "*.backup"))
+    files.sort(key=os.path.getmtime, reverse=True)
+    for file_path in files[keep:]:
+        os.remove(file_path)
 
 
 def _scan_backups(backup_dir: str) -> tuple[datetime | None, int]:
@@ -251,6 +266,7 @@ class ESPSomfyController(DataUpdateCoordinator):
         self._probe_task: asyncio.Task | None = None
         self._probe_now = asyncio.Event()
         self._probes = 0
+        self._cancel_reload: Callable[[], None] | None = None
         # Rooms and groups synchronisation, set by async_setup_entry when enabled.
         self.organization: OrganizationSync | None = None
         # Radio health checks, set by async_setup_entry.
@@ -347,6 +363,7 @@ class ESPSomfyController(DataUpdateCoordinator):
                 EVT_SHADESTATE,
                 EVT_SHADECOMMAND,
                 EVT_GROUPSTATE,
+                EVT_GROUPADDED,
                 EVT_GROUPREMOVED,
                 EVT_FWSTATUS,
                 EVT_UPDPROGRESS,
@@ -394,6 +411,33 @@ class ESPSomfyController(DataUpdateCoordinator):
                     # The synchronisation has just read the shades again.
                     await self.health.async_try_refresh(reload=self.organization is None)
 
+    @callback
+    def _remove_device(self, identifier: str) -> None:
+        """Drop a device deleted on the board, with its entities."""
+        devices = dr.async_get(self.hass)
+        device = devices.async_get_device(identifiers={(DOMAIN, identifier)})
+        if device is not None and self.config_entry_id in device.config_entries:
+            devices.async_update_device(device.id, remove_config_entry_id=self.config_entry_id)
+
+    @callback
+    def _schedule_reload(self) -> None:
+        if self._cancel_reload is not None:
+            self._cancel_reload()
+
+        @callback
+        def _reload(_now: datetime) -> None:
+            self._cancel_reload = None
+            self.hass.config_entries.async_schedule_reload(self.config_entry_id)
+
+        self._cancel_reload = async_call_later(self.hass, RELOAD_DELAY, _reload)
+
+    @callback
+    def cancel_reload(self) -> None:
+        """Forget a reload that has not started yet."""
+        if self._cancel_reload is not None:
+            self._cancel_reload()
+            self._cancel_reload = None
+
     async def async_probe(self) -> bool:
         """Probe the HTTP API once and publish the result."""
         ok = await self.api.probe()
@@ -437,6 +481,20 @@ class ESPSomfyController(DataUpdateCoordinator):
         """Create a backup of the configuration and stores it in HA."""
         return await self.api.create_backup()
 
+    async def async_backup(self) -> bool:
+        """Back the board up, then keep the configured number of copies."""
+        if not await self.api.create_backup():
+            return False
+        # Only after a backup was written, in the directory it was written to.
+        try:
+            await self.hass.async_add_executor_job(
+                _rotate_backups, self.api.backup_dir, self.max_backups
+            )
+        except OSError as ex:
+            _LOGGER.warning("Could not rotate backup files: %s", ex)
+        await self.async_update_backup_info()
+        return True
+
     async def update_firmware(self, version) -> bool:
         """Start the firmware update process."""
         return await self.api.update_firmware(version)
@@ -464,6 +522,17 @@ class ESPSomfyController(DataUpdateCoordinator):
         # this will allow us to simply update the latest firmware
         if "event" in data and data["event"] == EVT_FWSTATUS:
             self.api.set_firmware(data)
+        if data.get("event") == EVT_SHADEREMOVED and "shadeId" in data:
+            self._remove_device(f"shade_{self.unique_id}_{data['shadeId']}")
+            if self.health is not None:
+                # Its repairs go with it.
+                self.config_entry.async_create_background_task(
+                    self.hass, self.health.async_try_refresh(), "espsomfy_rts_health"
+                )
+        if data.get("event") in (EVT_SHADEADDED, EVT_GROUPADDED):
+            # New entities only come with a reload of the entry; wait for the
+            # burst of events that follows an addition.
+            self._schedule_reload()
         if self.organization is not None and data.get("event") in (
             EVT_ROOMADDED,
             EVT_ROOMREMOVED,

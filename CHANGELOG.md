@@ -28,6 +28,15 @@
   diagnostic sensors, on boards that publish radio statistics.
 - **Repair for firmware 2.x and 3.x**, with a link to the browser installer
   of the ESPSomfy-RTS v4 firmware.
+- **A fresh copy of each board in every Home Assistant backup**, unless the
+  newest one is less than an hour old. A board that does not answer is
+  logged and never makes the Home Assistant backup fail.
+- **Shades and groups follow the board.** A shade or group added on the
+  board reloads the integration, so it shows up by itself. A shade deleted
+  on the board loses its device at once, and devices deleted on the board
+  while Home Assistant was stopped are removed at startup (only from lists
+  the board actually returned). A device still on the board can no longer
+  be deleted by hand, since it would come back at the next reload.
 - The board, each shade and each group link to the matching page of the
   board's web interface.
 

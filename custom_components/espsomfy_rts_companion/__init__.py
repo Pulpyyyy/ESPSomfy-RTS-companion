@@ -14,10 +14,10 @@ from homeassistant.const import (
 )
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION, PLATFORMS
+from .const import CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION, DOMAIN, PLATFORMS
 from .controller import ESPSomfyAPI, ESPSomfyController, LoginError
 from .health import BoardHealth
 from .organization import OrganizationSync
@@ -73,8 +73,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) -> 
     #    que /discovery (identité) : sur un boîtier en auth complète, /discovery n'inclut
     #    plus la liste des shades/groups sans token, donc les plateformes seraient créées
     #    avec une liste vide et tous les volets reviendraient "unavailable".
-    await api.load_shades()
-    await api.load_groups()
+    shades = await api.load_shades()
+    groups = await api.load_groups()
     # Newest local backup for the "Last backup" sensor, read before the
     # platforms so the entity starts with its value.
     await controller.async_update_backup_info()
@@ -86,6 +86,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) -> 
     # 4. Les plateformes ne sont chargées qu'une fois le login réussi, sinon un
     #    échec après forward provoquait un double chargement au retry.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Shades and groups deleted on the board while Home Assistant was not
+    # listening. Only from lists the board actually returned: a failed read
+    # must never look like a board without shades.
+    if shades is not None and groups is not None:
+        _async_remove_stale_devices(hass, entry, controller, shades, groups)
 
     async def _async_ws_close(_: Event) -> None:
         await controller.ws_close()
@@ -143,14 +148,50 @@ async def async_unload_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) ->
     if controller is not None:
         controller.organization = None
         controller.health = None
+        controller.cancel_reload()
         await controller.async_stop_probe()
         await controller.ws_close()
         return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     return True
 
 
+def _board_ids(controller: ESPSomfyController, shades: list, groups: list) -> set[str]:
+    """Identifiers of the devices the board still has."""
+    uid = controller.unique_id
+    ids = {uid}
+    ids.update(f"shade_{uid}_{s['shadeId']}" for s in shades if "shadeId" in s)
+    ids.update(f"group_{uid}_{g['groupId']}" for g in groups if "groupId" in g)
+    return ids
+
+
+@callback
+def _async_remove_stale_devices(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    controller: ESPSomfyController,
+    shades: list,
+    groups: list,
+) -> None:
+    """Drop the devices whose shade or group no longer exists on the board."""
+    known = _board_ids(controller, shades, groups)
+    prefixes = (f"shade_{controller.unique_id}_", f"group_{controller.unique_id}_")
+    devices = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(devices, entry.entry_id):
+        ours = {i for d, i in device.identifiers if d == DOMAIN and i.startswith(prefixes)}
+        if ours and not ours & known:
+            devices.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+
+
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
 ) -> bool:
-    """Remove a config entry from a device."""
-    return True
+    """Allow deleting a device only once the board no longer has it.
+
+    A shade or group still on the board would come back at the next reload,
+    and the board itself is removed with the integration.
+    """
+    controller: ESPSomfyController | None = getattr(config_entry, "runtime_data", None)
+    if controller is None:
+        return True
+    known = _board_ids(controller, controller.api.shades, controller.api.groups)
+    return not any(d == DOMAIN and i in known for d, i in device_entry.identifiers)
