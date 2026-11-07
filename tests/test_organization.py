@@ -246,3 +246,34 @@ async def test_option_off_leaves_home_assistant_alone(
 
     assert entry.runtime_data.organization is None
     assert lr.async_get(hass).async_get_label_by_name("Rez") is None
+
+
+async def test_group_deleted_on_the_board_removes_its_label(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """A group deleted on the board takes its label off the shades.
+
+    The label id was dropped from the tracking map before the covers were
+    reconciled, so nothing ever removed it and it stayed on them for good.
+    """
+    _mock_board(aioclient_mock)
+    entry = _entry(hass)
+    await _setup(hass, entry)
+
+    entities = er.async_get(hass)
+    label = lr.async_get(hass).async_get_label_by_name("Rez")
+    assert label is not None
+    covers = [
+        entities.async_get_entity_id("cover", DOMAIN, f"{UID}_{shade_id}")
+        for shade_id in (1, 2)
+    ]
+    for entity_id in covers:
+        assert label.label_id in entities.async_get(entity_id).labels
+
+    # The group is gone from the board; the next sync must clean the shades.
+    controller = entry.runtime_data
+    controller.api._config["groups"] = []
+    controller.organization._apply_groups()
+
+    for entity_id in covers:
+        assert label.label_id not in entities.async_get(entity_id).labels

@@ -297,10 +297,17 @@ class OrganizationSync:
                 )
                 if entity_id:
                     wanted.setdefault(entity_id, set()).add(label.label_id)
+        # A group deleted on the board takes its label off the shades: the label
+        # still counts as ours for this pass, otherwise it stayed on them forever.
+        dropped = {
+            label_id
+            for group_id, label_id in self._group_label.items()
+            if group_id not in known_groups
+        }
         for group_id in list(self._group_label):
             if group_id not in known_groups:
                 del self._group_label[group_id]
-        ours = set(self._group_label.values())
+        ours = set(self._group_label.values()) | dropped
         for entry in er.async_entries_for_config_entry(
             entities, self.controller.config_entry.entry_id
         ):

@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.0.1
+
+### Fixed
+- A group deleted on the board now takes its label off the shades. The
+  label was left on them for good.
+
 ## 4.0.0
 
 ### Added
