@@ -157,7 +157,17 @@
         "name": "Órdenes de radio perdidas"
       },
       "radio_margin": {
-        "name": "Margen de radio"
+        "name": "Margen de radio",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Motivo del valor desconocido",
+            "state": {
+              "no_linked_remote": "Ningún mando vinculado a esta persiana",
+              "remote_not_heard": "Mando vinculado aún no recibido",
+              "noise_not_measured": "Ruido de fondo aún no medido"
+            }
+          }
+        }
       }
     },
     "switch": {

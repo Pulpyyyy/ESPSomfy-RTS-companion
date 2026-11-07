@@ -50,10 +50,14 @@ async def _setup(
     repeats: int,
     rf_stats: dict | None,
     version: str = "4.2.1",
+    linked_remotes: list | None = None,
 ) -> MockConfigEntry:
     aioclient_mock.get(DISCOVERY_URL, json={**DISCOVERY_PAYLOAD, "version": version})
     aioclient_mock.put(LOGIN_URL, json={"success": True, "apiKey": "0123456789"})
-    aioclient_mock.get(f"{API_URL}/shades", json=[_shade(repeats)])
+    shade = _shade(repeats)
+    if linked_remotes is not None:
+        shade["linkedRemotes"] = linked_remotes
+    aioclient_mock.get(f"{API_URL}/shades", json=[shade])
     aioclient_mock.get(f"{API_URL}/groups", json=[])
     aioclient_mock.get(f"{API_URL}/rooms", json=[])
     if rf_stats is None:
@@ -120,6 +124,7 @@ async def test_sensors_follow_the_statistics(hass: HomeAssistant, aioclient_mock
     margin = _state(hass, f"radio_margin_{UID}_1")
     assert float(margin.state) == pytest.approx(40.0)
     assert margin.attributes["measurement"] == "passive"
+    assert margin.attributes["unknown_reason"] is None
     assert margin.attributes["recommended_repeats"] == 2
     # Enough repeats, a good link: nothing to repair.
     assert _issue(hass, "repeats_low_1") is None
@@ -165,3 +170,40 @@ async def test_current_firmware_is_not_reported(hass: HomeAssistant, aioclient_m
     await _setup(hass, aioclient_mock, repeats=2, rf_stats=None)
 
     assert _issue(hass, "firmware_outdated") is None
+
+
+
+async def test_margin_says_the_remote_was_not_heard(hass: HomeAssistant, aioclient_mock) -> None:
+    """A linked remote the board never heard: unknown, and why."""
+    stats = _rf_stats()
+    stats["entries"] = []
+    await _setup(hass, aioclient_mock, repeats=3, rf_stats=stats)
+
+    margin = _state(hass, f"radio_margin_{UID}_1")
+    assert margin.state == "unknown"
+    assert margin.attributes["unknown_reason"] == "remote_not_heard"
+    assert margin.attributes["measurement"] is None
+
+
+async def test_margin_says_the_noise_is_not_measured(hass: HomeAssistant, aioclient_mock) -> None:
+    """No noise sample yet: unknown, and why."""
+    stats = _rf_stats()
+    stats["noiseSamples"] = 0
+    await _setup(hass, aioclient_mock, repeats=3, rf_stats=stats)
+
+    margin = _state(hass, f"radio_margin_{UID}_1")
+    assert margin.state == "unknown"
+    assert margin.attributes["unknown_reason"] == "noise_not_measured"
+
+
+async def test_no_margin_sensor_without_a_linked_remote(hass: HomeAssistant, aioclient_mock) -> None:
+    """A shade driven by the board alone has nothing to measure: no sensor,
+    and the one an earlier version created is removed."""
+    registry = er.async_get(hass)
+    stale = registry.async_get_or_create("sensor", DOMAIN, f"radio_margin_{UID}_1").entity_id
+    await _setup(hass, aioclient_mock, repeats=3, rf_stats=_rf_stats(), linked_remotes=[])
+
+    assert registry.async_get(stale) is None
+    assert _state(hass, f"radio_margin_{UID}_1") is None
+    # The board-wide sensors are still there.
+    assert _state(hass, f"radio_noise_{UID}") is not None

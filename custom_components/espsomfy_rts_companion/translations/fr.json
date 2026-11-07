@@ -157,7 +157,17 @@
         "name": "Ordres radio perdus"
       },
       "radio_margin": {
-        "name": "Marge radio"
+        "name": "Marge radio",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison de la valeur inconnue",
+            "state": {
+              "no_linked_remote": "Aucune télécommande liée à ce volet",
+              "remote_not_heard": "Télécommande liée pas encore entendue",
+              "noise_not_measured": "Bruit de fond pas encore mesuré"
+            }
+          }
+        }
       }
     },
     "switch": {

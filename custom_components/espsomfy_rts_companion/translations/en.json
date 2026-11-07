@@ -157,7 +157,17 @@
         "name": "Lost radio orders"
       },
       "radio_margin": {
-        "name": "Radio margin"
+        "name": "Radio margin",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason the margin is unknown",
+            "state": {
+              "no_linked_remote": "No remote linked to this shade",
+              "remote_not_heard": "Linked remote not heard yet",
+              "noise_not_measured": "Background noise not measured yet"
+            }
+          }
+        }
       }
     },
     "switch": {

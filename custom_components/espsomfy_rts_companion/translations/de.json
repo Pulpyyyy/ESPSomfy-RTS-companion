@@ -157,7 +157,17 @@
         "name": "Verlorene Funkbefehle"
       },
       "radio_margin": {
-        "name": "Funkreserve"
+        "name": "Funkreserve",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Grund für den unbekannten Wert",
+            "state": {
+              "no_linked_remote": "Keine Fernbedienung mit diesem Behang verknüpft",
+              "remote_not_heard": "Verknüpfte Fernbedienung noch nicht empfangen",
+              "noise_not_measured": "Grundrauschen noch nicht gemessen"
+            }
+          }
+        }
       }
     },
     "switch": {

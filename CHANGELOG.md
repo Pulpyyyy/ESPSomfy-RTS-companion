@@ -30,7 +30,10 @@
   advised value on the board. A guided measurement under 8 dB above the
   noise raises a warning: more repeats rarely save such a link.
 - **Radio noise**, **Lost radio orders** and per shade **Radio margin**
-  diagnostic sensors, on boards that publish radio statistics.
+  diagnostic sensors, on boards that publish radio statistics. The margin is
+  measured on the remotes linked to a shade, so a shade without one gets no
+  margin sensor; while it is unknown, its `unknown_reason` attribute says why
+  (linked remote not heard yet, background noise not measured yet).
 - **Repair for firmware 2.x and 3.x**, with a link to the browser installer
   of the ESPSomfy-RTS v4 firmware.
 - **A fresh copy of each board in every Home Assistant backup**, unless the

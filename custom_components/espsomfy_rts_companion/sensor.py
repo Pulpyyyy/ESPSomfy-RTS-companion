@@ -21,10 +21,12 @@ from homeassistant.const import (
     UnitOfInformation,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    DOMAIN,
     EVT_BACKUPDONE,
     EVT_CONNECTED,
     EVT_ETHERNET,
@@ -67,6 +69,7 @@ def _margin_attrs(health: BoardHealth, shade_id: int | None) -> dict[str, Any]:
         measurement = "guided" if shade.get("guided") else "passive"
     return {
         "measurement": measurement,
+        "unknown_reason": shade.get("unknown_reason"),
         "repeats": shade.get("repeats"),
         "recommended_repeats": shade.get("recommended"),
     }
@@ -341,9 +344,19 @@ async def async_setup_entry(
         if health is not None and health.supported:
             new_entities.append(ESPSomfyRadioSensor(controller, RADIO_NOISE))
             new_entities.append(ESPSomfyRadioSensor(controller, RADIO_DROPPED))
+            registry = er.async_get(hass)
             for shade in controller.api.shades:
-                if int(shade.get("shadeId", -1)) in health.shades:
+                shade_id = int(shade.get("shadeId", -1))
+                if shade_id not in health.shades:
+                    continue
+                if health.shades[shade_id]["linked"]:
                     new_entities.append(ESPSomfyRadioSensor(controller, RADIO_MARGIN, shade))
+                # No remote linked: the board has nothing to measure for this
+                # shade, the margin would stay unknown for good.
+                elif entity_id := registry.async_get_entity_id(
+                    "sensor", DOMAIN, f"{RADIO_MARGIN.key}_{controller.unique_id}_{shade_id}"
+                ):
+                    registry.async_remove(entity_id)
     if new_entities:
         async_add_entities(new_entities)
 

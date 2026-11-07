@@ -42,6 +42,11 @@ ISSUE_REPEATS = "repeats_low"
 ISSUE_WEAK_LINK = "weak_link"
 ISSUE_FIRMWARE = "firmware_outdated"
 
+# Why a shade has no margin, published with its Radio margin sensor.
+UNKNOWN_NO_REMOTE = "no_linked_remote"
+UNKNOWN_NOT_HEARD = "remote_not_heard"
+UNKNOWN_NO_NOISE = "noise_not_measured"
+
 
 def recommended_repeats(margin: float) -> int:
     """Repeats advised for a signal-to-noise margin, in dB."""
@@ -66,7 +71,7 @@ class BoardHealth:
         self.api = controller.api
         # /rfStats as last read, None when the board does not offer it.
         self.stats: dict[str, Any] | None = None
-        # shadeId -> {"margin", "guided", "recommended", "repeats"}
+        # shadeId -> {"margin", "guided", "unknown_reason", "linked", "recommended", "repeats"}
         self.shades: dict[int, dict[str, Any]] = {}
         self._issues: set[str] = set()
 
@@ -118,11 +123,13 @@ class BoardHealth:
             name = shade.get("name") or f"Shade {shade_id}"
             repeats = shade.get("repeats")
             current = int(repeats) if isinstance(repeats, int) else DEFAULT_REPEATS
-            margin, guided = self._margin(shade, entries, noise_ref)
+            margin, guided, unknown_reason = self._margin(shade, entries, noise_ref)
             recommended = MIN_REPEATS if margin is None else recommended_repeats(margin)
             self.shades[shade_id] = {
                 "margin": margin,
                 "guided": guided,
+                "unknown_reason": unknown_reason,
+                "linked": unknown_reason != UNKNOWN_NO_REMOTE,
                 "recommended": recommended,
                 "repeats": current,
             }
@@ -166,20 +173,31 @@ class BoardHealth:
     @staticmethod
     def _margin(
         shade: dict[str, Any], entries: dict[int, dict[str, Any]], noise_ref: float | None
-    ) -> tuple[float | None, bool]:
-        """Best margin over the remotes linked to a shade, and whether it was guided."""
+    ) -> tuple[float | None, bool, str | None]:
+        """Best margin over the remotes linked to a shade, whether it was guided,
+        and why there is none.
+
+        The board measures remotes only: a shade driven by the board alone has
+        nothing to measure, and a remote counts once the board has heard it.
+        """
+        addresses = [
+            int(remote.get("remoteAddress", 0)) for remote in shade.get("linkedRemotes") or []
+        ]
+        addresses = [address for address in addresses if address]
+        if not addresses:
+            return None, False, UNKNOWN_NO_REMOTE
         if noise_ref is None:
-            return None, False
+            return None, False, UNKNOWN_NO_NOISE
         best: dict[str, Any] | None = None
-        for remote in shade.get("linkedRemotes") or []:
-            entry = entries.get(int(remote.get("remoteAddress", 0)))
+        for address in addresses:
+            entry = entries.get(address)
             if entry is None:
                 continue
             if best is None or _level(entry) > _level(best):
                 best = entry
         if best is None:
-            return None, False
-        return round(_level(best) - float(noise_ref), 1), bool(best.get("guided"))
+            return None, False, UNKNOWN_NOT_HEARD
+        return round(_level(best) - float(noise_ref), 1), bool(best.get("guided")), None
 
     def _firmware_outdated(self) -> bool:
         try:
