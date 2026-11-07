@@ -30,6 +30,8 @@ EVT_GROUPREMOVED = "groupRemoved"
 EVT_SHADECOMMAND = "shadeCommand"
 EVT_SHADEADDED = "shadeAdded"
 EVT_SHADEREMOVED = "shadeRemoved"
+EVT_ROOMADDED = "roomAdded"
+EVT_ROOMREMOVED = "roomRemoved"
 EVT_CONNECTED = "connected"
 EVT_FWSTATUS = "fwStatus"
 EVT_UPDPROGRESS = "updateProgress"
@@ -42,6 +44,11 @@ EVT_HTTPPROBE = "httpProbe"
 EVT_BACKUPDONE = "backupDone"
 
 CONF_MAX_BACKUPS = "max_backups"
+# Rooms <-> areas and groups -> labels (see organization.py).
+CONF_SYNC_ORGANIZATION = "sync_organization"
+DEFAULT_SYNC_ORGANIZATION = True
+# Longest room name the board stores.
+ROOM_NAME_MAX = 20
 DEFAULT_MAX_BACKUPS = 5
 MIN_BACKUPS = 1
 MAX_BACKUPS = 50

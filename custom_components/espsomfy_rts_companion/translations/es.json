@@ -73,12 +73,14 @@
           "username": "Nombre de usuario",
           "password": "Contraseña",
           "pin": "Código PIN",
-          "max_backups": "Número de copias de seguridad a conservar"
+          "max_backups": "Número de copias de seguridad a conservar",
+          "sync_organization": "Sincronizar estancias y grupos"
         },
         "title": "Configurar ESPSomfy-RTS",
         "description": "Configuración de las opciones de seguridad para tu dispositivo",
         "data_description": {
-          "max_backups": "Por encima de este número se eliminan los archivos de copia de seguridad más antiguos de este dispositivo (1 a 50)"
+          "max_backups": "Por encima de este número se eliminan los archivos de copia de seguridad más antiguos de este dispositivo (1 a 50)",
+          "sync_organization": "Las estancias de la placa se convierten en áreas, en ambos sentidos: mover una persiana a otra área o renombrar un área también cambia la placa. Los grupos de la placa se convierten en etiquetas en sus persianas."
         }
       }
     }
@@ -283,6 +285,30 @@
   "exceptions": {
     "backup_failed": {
       "message": "La copia de seguridad de {name} ha fallado: el dispositivo no es accesible o no ha devuelto su configuración"
+    }
+  },
+  "issues": {
+    "room_limit": {
+      "title": "No quedan estancias libres en {device}",
+      "description": "El área **{area}** no se pudo añadir como estancia en {device}: la placa ya tiene su máximo de 16 estancias. Borra una estancia en la placa o devuelve la persiana a un área que ya tenga su estancia."
+    },
+    "organization_conflict": {
+      "title": "Las estancias difieren entre {device} y Home Assistant",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "¿Qué lado conservar?",
+            "description": "{count} persiana(s) de {device} están en una estancia en la placa y en otra área en Home Assistant. Aún no se ha cambiado nada: elige el lado que se conserva, el otro se alinea con él.",
+            "menu_options": {
+              "board": "Conservar las estancias de la placa",
+              "home_assistant": "Conservar las áreas de Home Assistant"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "La placa no está cargada, inténtalo de nuevo cuando esté conectada."
+        }
+      }
     }
   }
 }

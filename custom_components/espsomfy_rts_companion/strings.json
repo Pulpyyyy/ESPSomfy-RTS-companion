@@ -73,12 +73,14 @@
           "username": "Username",
           "password": "Password",
           "pin": "Pin Number",
-          "max_backups": "Number of backups to keep"
+          "max_backups": "Number of backups to keep",
+          "sync_organization": "Synchronise rooms and groups"
         },
         "title": "Configure ESPSomfy RTS",
         "description": "Provide the configured security options for your device",
         "data_description": {
-          "max_backups": "Older backup files of this device are deleted beyond this number (1 to 50)"
+          "max_backups": "Older backup files of this device are deleted beyond this number (1 to 50)",
+          "sync_organization": "The board's rooms become areas, both ways: moving a shade to another area or renaming an area changes the board too. The board's groups become labels on their shades."
         }
       }
     }
@@ -283,6 +285,30 @@
   "exceptions": {
     "backup_failed": {
       "message": "Backup of {name} failed: the device is unreachable or did not return its configuration"
+    }
+  },
+  "issues": {
+    "room_limit": {
+      "title": "Not enough rooms on {device}",
+      "description": "The area **{area}** could not be added as a room on {device}: the board already has its maximum of 16 rooms. Delete a room on the board, or move the shade back to an area that already has its room."
+    },
+    "organization_conflict": {
+      "title": "Rooms differ between {device} and Home Assistant",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Keep which side?",
+            "description": "{count} shade(s) of {device} are in a room on the board and in another area in Home Assistant. Nothing has been changed yet: choose the side to keep, the other one is aligned on it.",
+            "menu_options": {
+              "board": "Keep the rooms of the board",
+              "home_assistant": "Keep the areas of Home Assistant"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "The board is not loaded, try again once it is connected."
+        }
+      }
     }
   }
 }

@@ -21,7 +21,18 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.util.network import is_host_valid
 
-from .const import CONF_MAX_BACKUPS, DEFAULT_MAX_BACKUPS, DOMAIN, MAX_BACKUPS, MIN_BACKUPS
+from .const import (
+    CONF_MAX_BACKUPS,
+    CONF_SYNC_ORGANIZATION,
+    DEFAULT_MAX_BACKUPS,
+    DEFAULT_SYNC_ORGANIZATION,
+    DOMAIN,
+    MAX_BACKUPS,
+    MIN_BACKUPS,
+)
+
+# Settings kept in the entry options; everything else goes to the entry data.
+OPTION_KEYS = (CONF_MAX_BACKUPS, CONF_SYNC_ORGANIZATION)
 from .controller import (
     DiscoveryError,
     ESPSomfyAPI,
@@ -231,12 +242,15 @@ class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
         errors = {}
         if user_input is not None:
             # The connection settings live in the entry data, the backup
-            # retention is a true option.
-            data = {k: v for k, v in user_input.items() if k != CONF_MAX_BACKUPS}
+            # retention and the synchronisation are true options.
+            data = {k: v for k, v in user_input.items() if k not in OPTION_KEYS}
             options = {
                 CONF_MAX_BACKUPS: user_input.get(
                     CONF_MAX_BACKUPS, self._max_backups()
-                )
+                ),
+                CONF_SYNC_ORGANIZATION: bool(
+                    user_input.get(CONF_SYNC_ORGANIZATION, self._sync_organization())
+                ),
             }
             try:
                 if not is_host_valid(data[CONF_HOST]):
@@ -281,6 +295,9 @@ class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
                     ): vol.All(
                         vol.Coerce(int), vol.Range(min=MIN_BACKUPS, max=MAX_BACKUPS)
                     ),
+                    vol.Optional(
+                        CONF_SYNC_ORGANIZATION, default=self._sync_organization()
+                    ): bool,
                 }
             ),
             errors=errors,
@@ -290,6 +307,14 @@ class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
         """Current retention, the default for entries created before the option."""
         return int(
             self._config_entry.options.get(CONF_MAX_BACKUPS, DEFAULT_MAX_BACKUPS)
+        )
+
+    def _sync_organization(self) -> bool:
+        """Whether rooms and groups follow the board, on unless turned off."""
+        return bool(
+            self._config_entry.options.get(
+                CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION
+            )
         )
 
 

@@ -9,7 +9,7 @@ import glob
 import json
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiofiles
 import aiohttp
@@ -50,6 +50,8 @@ from .const import (
     EVT_GROUPSTATE,
     EVT_HTTPPROBE,
     EVT_MEMSTATUS,
+    EVT_ROOMADDED,
+    EVT_ROOMREMOVED,
     EVT_SHADEADDED,
     EVT_SHADECOMMAND,
     EVT_SHADEREMOVED,
@@ -57,6 +59,9 @@ from .const import (
     EVT_UPDPROGRESS,
     EVT_WIFISTRENGTH,
 )
+
+if TYPE_CHECKING:
+    from .organization import OrganizationSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,6 +71,8 @@ WS_RECONNECT_MAX_DELAY = 20
 # The websocket alone can look healthy while the HTTP API, which every command
 # and the backup go through, no longer answers. A light GET checks it.
 PROBE_INTERVAL = 60
+# The board side of rooms and groups is read again every this many probes.
+ORGANIZATION_REFRESH_PROBES = 5
 PROBE_TIMEOUT = 5
 
 # The backup holds the WiFi passphrase in clear text, the device needs it to
@@ -242,6 +249,9 @@ class ESPSomfyController(DataUpdateCoordinator):
         self._ws_opened = False
         self._probe_task: asyncio.Task | None = None
         self._probe_now = asyncio.Event()
+        self._probes = 0
+        # Rooms and groups synchronisation, set by async_setup_entry when enabled.
+        self.organization: OrganizationSync | None = None
         # Newest local backup, refreshed from disk at setup and after a backup.
         self.last_backup: datetime | None = None
         self.backup_count = 0
@@ -329,6 +339,8 @@ class ESPSomfyController(DataUpdateCoordinator):
                 EVT_CONNECTED,
                 EVT_SHADEADDED,
                 EVT_SHADEREMOVED,
+                EVT_ROOMADDED,
+                EVT_ROOMREMOVED,
                 EVT_SHADESTATE,
                 EVT_SHADECOMMAND,
                 EVT_GROUPSTATE,
@@ -370,6 +382,10 @@ class ESPSomfyController(DataUpdateCoordinator):
                     await self._probe_now.wait()
             self._probe_now.clear()
             await self.async_probe()
+            # Room renames and moves are not reported on the websocket.
+            self._probes += 1
+            if self.organization is not None and self._probes % ORGANIZATION_REFRESH_PROBES == 0:
+                await self.organization.async_try_refresh()
 
     async def async_probe(self) -> bool:
         """Probe the HTTP API once and publish the result."""
@@ -441,6 +457,14 @@ class ESPSomfyController(DataUpdateCoordinator):
         # this will allow us to simply update the latest firmware
         if "event" in data and data["event"] == EVT_FWSTATUS:
             self.api.set_firmware(data)
+        if self.organization is not None and data.get("event") in (
+            EVT_ROOMADDED,
+            EVT_ROOMREMOVED,
+            EVT_SHADEADDED,
+            EVT_SHADEREMOVED,
+            EVT_GROUPREMOVED,
+        ):
+            self.organization.schedule_refresh()
 
         self.async_set_updated_data(data=data)
 
@@ -499,6 +523,11 @@ class ESPSomfyAPI:
         # /rooms is small and has no side effect, unlike /discovery which also
         # makes the firmware broadcast its whole network state on the socket.
         self._probe_path = API_ROOMS
+
+    @property
+    def rooms(self) -> Any:
+        """Return the rooms of the board."""
+        return self._config.get("rooms", [])
 
     @property
     def shades(self) -> Any:
@@ -816,6 +845,57 @@ class ESPSomfyAPI:
                 self._config["groups"] = await resp.json()
                 return self._config["groups"]
             _LOGGER.error(await resp.text())
+
+    async def load_rooms(self) -> Any | None:
+        """Load the rooms of the board."""
+        async with self._session.get(
+            f"{self._api_url}{API_ROOMS}", headers=self._headers
+        ) as resp:
+            if resp.status == 200:
+                self._config["rooms"] = await resp.json()
+                return self._config["rooms"]
+            _LOGGER.debug("ESPSomfy-RTS rooms not read: %s", resp.status)
+        return None
+
+    async def _put_config(self, path: str, data: dict[str, Any]) -> Any | None:
+        """Write to a configuration route of the board.
+
+        These routes are served by the web interface port, not by the API port
+        the rest of the integration uses; the same key is accepted on both.
+        """
+        try:
+            async with self._session.put(
+                f"{self._config_url}{path}",
+                json=data,
+                headers=self._headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.json(content_type=None)
+                _LOGGER.warning(
+                    "ESPSomfy-RTS %s refused %s: %s", self._deviceName, path, await resp.text()
+                )
+        except (aiohttp.ClientError, OSError, TimeoutError) as ex:
+            _LOGGER.warning("ESPSomfy-RTS %s: %s failed: %s", self._deviceName, path, ex)
+        return None
+
+    async def save_shade_room(self, shade_id: int, room_id: int) -> Any | None:
+        """Move a shade to a room of the board."""
+        shade = await self._put_config("/saveShade", {"shadeId": shade_id, "roomId": room_id})
+        if shade is not None:
+            for known in self._config.get("shades", []):
+                if known.get("shadeId") == shade_id:
+                    known["roomId"] = room_id
+        return shade
+
+    async def add_room(self, name: str) -> Any | None:
+        """Create a room on the board; None when it has no free room left."""
+        room = await self._put_config("/addRoom", {"name": name})
+        return room if isinstance(room, dict) and "roomId" in room else None
+
+    async def save_room(self, room_id: int, name: str) -> Any | None:
+        """Rename a room of the board."""
+        return await self._put_config("/saveRoom", {"roomId": room_id, "name": name})
 
     async def tilt_open(self, shade_id: int):
         """Send the command to open the tilt."""

@@ -2,6 +2,26 @@
 
 ## 4.0.0
 
+### Added
+- **Rooms and areas, both ways.** Each room of the board is linked to a Home
+  Assistant area (created when missing), and each shade device sits in the
+  area of its room. Moving a shade to another area, or renaming a linked area,
+  is written to the board (a missing room is created there); changes made on
+  the board come back to Home Assistant, at once for added or removed rooms
+  and shades, within five minutes for renames and moves.
+- **Repair when rooms differ.** A shade first seen in a room of the board and
+  in another area of Home Assistant is left alone on both sides, and a repair
+  asks which side to keep.
+- **Repair when the board is full.** An area that cannot become a room because
+  the board already has its 16 rooms raises a repair instead of failing
+  silently.
+- **Groups as labels.** Each group of the board becomes a label on its member
+  shades. Labels only go from the board to Home Assistant: joining a group
+  takes a pairing on the motor.
+- **Synchronise rooms and groups** option, on by default.
+- The board, each shade and each group link to the matching page of the
+  board's web interface.
+
 ### Changed
 - **New name: ESPSomfy-RTS Companion**, the Home Assistant integration of the
   ESPSomfy-RTS v4 firmware. The domain is now `espsomfy_rts_companion` and the

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import IntFlag
+import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -16,8 +17,11 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import PLATFORMS
+from .const import CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION, PLATFORMS
 from .controller import ESPSomfyAPI, ESPSomfyController, LoginError
+from .organization import OrganizationSync
+
+_LOGGER = logging.getLogger(__name__)
 
 type ESPSomfyConfigEntry = ConfigEntry[ESPSomfyController]
 
@@ -92,6 +96,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) -> 
     await controller.ws_connect()
     # 5. HTTP reachability probe, independent from the websocket reconnects.
     controller.start_probe()
+    # 6. Rooms <-> areas and groups -> labels. A failure here must not keep
+    #    the shades from working, so it is only logged.
+    if entry.options.get(CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION):
+        organization = OrganizationSync(hass, controller)
+        try:
+            await organization.async_start()
+        except Exception:
+            _LOGGER.exception("ESPSomfy-RTS %s: rooms and groups not synchronised", api.deviceName)
+            organization.async_stop()
+        else:
+            controller.organization = organization
+            entry.async_on_unload(organization.async_stop)
 
     return True
 
@@ -120,6 +136,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) ->
     """Unload a config entry."""
     controller: ESPSomfyController | None = getattr(entry, "runtime_data", None)
     if controller is not None:
+        controller.organization = None
         await controller.async_stop_probe()
         await controller.ws_close()
         return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

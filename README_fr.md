@@ -57,6 +57,7 @@ ESPSomfy-RTS Companion est le nouveau nom de l'intégration publiée ici sous le
 
 * **Contrôle complet** : ouvrir, fermer, arrêter et régler une position en pourcentage, inclinaison comprise, pour les volets et les groupes.
 * **Toujours synchronisée** : les positions suivent la carte en temps réel, que l'ordre vienne de Home Assistant, d'une télécommande ou de l'interface de la carte.
+* **Pièces et groupes alignés** : les pièces de la carte sont des zones de Home Assistant, dans les deux sens. Déplacez un volet dans une autre zone, ou renommez une zone, et la carte suit ; changez une pièce sur la carte et Home Assistant suit. Quand un volet n'est pas dans la même pièce des deux côtés, rien n'est modifié : une réparation demande quel côté garder. Les groupes de la carte apparaissent comme étiquettes sur leurs volets. Désactivable dans les options de l'intégration.
 * **La carte en un clic** : la carte, chaque volet et chaque groupe renvoient à la page correspondante de l'interface web de la carte (**Visiter** sur la page de l'appareil).
 * **Mises à jour du firmware** : une entité `update` signale chaque nouvelle version d'ESPSomfy-RTS et l'installe depuis Home Assistant.
 * **Automatisations** : les volets sont des entités `cover` standard, et l'intégration ajoute des actions pour les pas, les commandes RTS brutes, la correction de position sans mouvement, les drapeaux soleil et vent, le redémarrage et la sauvegarde (voir [Services](docs/Services.md)).

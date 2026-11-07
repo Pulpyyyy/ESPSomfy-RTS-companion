@@ -73,12 +73,14 @@
           "username": "Benutzername",
           "password": "Passwort",
           "pin": "PIN-Code",
-          "max_backups": "Anzahl aufzubewahrender Sicherungen"
+          "max_backups": "Anzahl aufzubewahrender Sicherungen",
+          "sync_organization": "Räume und Gruppen synchronisieren"
         },
         "title": "ESPSomfy-RTS konfigurieren",
         "description": "Einrichtung der für Ihr Gerät konfigurierten Sicherheitsoptionen",
         "data_description": {
-          "max_backups": "Ältere Sicherungsdateien dieses Geräts werden über diese Anzahl hinaus gelöscht (1 bis 50)"
+          "max_backups": "Ältere Sicherungsdateien dieses Geräts werden über diese Anzahl hinaus gelöscht (1 bis 50)",
+          "sync_organization": "Die Räume der Platine werden zu Bereichen, in beide Richtungen: Wird ein Rollladen in einen anderen Bereich verschoben oder ein Bereich umbenannt, ändert sich auch die Platine. Die Gruppen der Platine werden zu Labels an ihren Rollläden."
         }
       }
     }
@@ -283,6 +285,30 @@
   "exceptions": {
     "backup_failed": {
       "message": "Sicherung von {name} fehlgeschlagen: Das Gerät ist nicht erreichbar oder hat seine Konfiguration nicht geliefert"
+    }
+  },
+  "issues": {
+    "room_limit": {
+      "title": "Keine freien Räume auf {device}",
+      "description": "Der Bereich **{area}** konnte nicht als Raum auf {device} angelegt werden: Die Platine hat bereits das Maximum von 16 Räumen. Lösche einen Raum auf der Platine oder verschiebe den Rollladen in einen Bereich, der schon seinen Raum hat."
+    },
+    "organization_conflict": {
+      "title": "Räume unterscheiden sich zwischen {device} und Home Assistant",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Welche Seite behalten?",
+            "description": "{count} Rollladen von {device} sind auf der Platine in einem Raum und in Home Assistant in einem anderen Bereich. Noch wurde nichts geändert: Wähle die Seite, die bleiben soll, die andere wird angeglichen.",
+            "menu_options": {
+              "board": "Räume der Platine behalten",
+              "home_assistant": "Bereiche von Home Assistant behalten"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "Die Platine ist nicht geladen, versuche es erneut, sobald sie verbunden ist."
+        }
+      }
     }
   }
 }
