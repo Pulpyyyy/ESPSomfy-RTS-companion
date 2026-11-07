@@ -207,12 +207,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Get the options flow for espsomfy_rts_enhanced."""
+        """Get the options flow for espsomfy_rts_companion."""
         return ESPSomfyOptionsFlowHandler(config_entry)
 
 
 class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
-    """Options flow for espsomfy_rts_enhanced component."""
+    """Options flow for espsomfy_rts_companion component."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize the OptionsFlow."""
@@ -227,7 +227,7 @@ class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Configure options for espsomfy_rts_enhanced."""
+        """Configure options for espsomfy_rts_companion."""
         errors = {}
         if user_input is not None:
             # The connection settings live in the entry data, the backup

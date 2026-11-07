@@ -62,7 +62,7 @@ automation:
         entity_id: binary_sensor.espsomfyrts_connectivity
         state: "on"
     actions:
-      - action: espsomfy_rts_enhanced.backup
+      - action: espsomfy_rts_companion.backup
         target:
           entity_id: button.espsomfyrts_backup
 ```

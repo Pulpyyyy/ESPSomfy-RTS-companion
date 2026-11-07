@@ -1,4 +1,4 @@
-"""Tests for the ESPSomfy-RTS Enhanced configuration flow."""
+"""Tests for the ESPSomfy-RTS Companion configuration flow."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.espsomfy_rts_enhanced.const import (
+from custom_components.espsomfy_rts_companion.const import (
     CONF_MAX_BACKUPS,
     DEFAULT_MAX_BACKUPS,
     DOMAIN,
@@ -50,7 +50,7 @@ async def test_user_flow_creates_the_entry(hass: HomeAssistant, aioclient_mock) 
     assert not result["errors"]
 
     with patch(
-        "custom_components.espsomfy_rts_enhanced.async_setup_entry",
+        "custom_components.espsomfy_rts_companion.async_setup_entry",
         return_value=True,
     ) as mock_setup_entry:
         result = await hass.config_entries.flow.async_configure(

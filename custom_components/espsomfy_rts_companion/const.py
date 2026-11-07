@@ -10,7 +10,7 @@ from homeassistant.const import Platform
 VERSION = "v" + json.loads(
     (Path(__file__).parent / "manifest.json").read_text(encoding="utf-8")
 )["version"]
-DOMAIN = "espsomfy_rts_enhanced"
+DOMAIN = "espsomfy_rts_companion"
 MANUFACTURER = "Pulpyyyy"
 API_SHADES = "/shades"
 API_GROUPS = "/groups"

@@ -27,12 +27,12 @@ from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
 )
 
-from custom_components.espsomfy_rts_enhanced.const import (
+from custom_components.espsomfy_rts_companion.const import (
     CONF_MAX_BACKUPS,
     DEFAULT_MAX_BACKUPS,
     DOMAIN,
 )
-from custom_components.espsomfy_rts_enhanced.controller import (
+from custom_components.espsomfy_rts_companion.controller import (
     PROBE_INTERVAL,
     ESPSomfyAPI,
     ESPSomfyController,
@@ -185,7 +185,7 @@ async def test_unplugged_device_goes_off_then_back_on(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Unplugged: off within 90 s, plugged back: on within 90 s, logged once each."""
-    caplog.set_level(logging.INFO, logger="custom_components.espsomfy_rts_enhanced")
+    caplog.set_level(logging.INFO, logger="custom_components.espsomfy_rts_companion")
     [entry] = await _setup(hass, aioclient_mock)
     controller = entry.runtime_data
     entity_id = _entity_id(hass, "binary_sensor", "connectivity", SERVER_ID)

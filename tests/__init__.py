@@ -1,1 +1,1 @@
-"""Tests for the ESPSomfy-RTS Enhanced integration."""
+"""Tests for the ESPSomfy-RTS Companion integration."""

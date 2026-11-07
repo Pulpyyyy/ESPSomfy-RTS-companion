@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.0.0
+
+### Changed
+- **New name: ESPSomfy-RTS Companion**, the Home Assistant integration of the
+  ESPSomfy-RTS v4 firmware. The domain is now `espsomfy_rts_companion` and the
+  repository is `Pulpyyyy/ESPSomfy-RTS-companion`. Home Assistant sees it as a
+  new integration: remove *ESPSomfy-RTS Enhanced*, install the Companion and
+  add the board again (see *Coming from ESPSomfy-RTS Enhanced* in the README).
+  Actions move from `espsomfy_rts_enhanced.*` to `espsomfy_rts_companion.*`;
+  the `espsomfy-rts_event` events keep their name.
+- New icon, banner and README.
+
 ## 3.5.0
 
 ### Added
