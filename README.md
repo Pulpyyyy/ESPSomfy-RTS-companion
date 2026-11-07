@@ -1,107 +1,87 @@
 <div align="center">
 
-[![GitHub Release](https://img.shields.io/github/release/Pulpyyyy/ESPSomfy-RTS-enhanced.svg?style=for-the-badge)](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/releases) [![GitHub Activity](https://img.shields.io/github/last-commit/Pulpyyyy/ESPSomfy-RTS-enhanced/main?style=for-the-badge)](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/commits/main) [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-<br />
-[![License](https://img.shields.io/github/license/Pulpyyyy/ESPSomfy-RTS-enhanced.svg?style=for-the-badge)](LICENSE) [![Project Maintenance](https://img.shields.io/badge/maintainer-Pulpyyyy-blue.svg?style=for-the-badge)](https://github.com/Pulpyyyy) [![GitHub stars](https://img.shields.io/github/stars/Pulpyyyy/ESPSomfy-RTS-enhanced?style=for-the-badge&logo=github&color=blue)](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/stargazers)
+[![GitHub Release](https://img.shields.io/github/release/Pulpyyyy/ESPSomfy-RTS-companion.svg?style=for-the-badge)](https://github.com/Pulpyyyy/ESPSomfy-RTS-companion/releases) [![License](https://img.shields.io/github/license/Pulpyyyy/ESPSomfy-RTS-companion.svg?style=for-the-badge)](LICENSE) [![Firmware](https://img.shields.io/github/release/Pulpyyyy/ESPSomfy-RTS.svg?style=for-the-badge&label=firmware)](https://github.com/Pulpyyyy/ESPSomfy-RTS/releases)
 
-<br />
+<img src="images/banner.png" alt="ESPSomfy-RTS Companion: the Home Assistant integration of the ESPSomfy-RTS v4 firmware" width="100%">
 
-<img src="https://github.com/Pulpyyyy/ESPSomfy-RTS/blob/main/images/banniereRTS-ha.png" alt="ESPSomfy-RTS-HA Banner" width="100%">
-
-<br />
-<br />
-
-
-<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Pulpyyyy&repository=ESPSomfy-RTS-enhanced&category=integration">
-  <img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.">
+<a href="https://my.home-assistant.io/redirect/marketplace_repository/?owner=Pulpyyyy&repository=ESPSomfy-RTS-companion&category=integration">
+  <img src="https://my.home-assistant.io/badges/marketplace_repository.svg" alt="Open this repository in the Marketplace of your Home Assistant">
 </a>
 
-
-<br />
-<br />
-
-A custom Home Assistant integration (Fork) to precisely control and monitor your equipment (roller shutters, shades, garage doors, gates) using the RTS 433 MHz protocol.
-
-### [README complet en français 🇫🇷 »](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/blob/main/README_fr.md)
-### [Explore the documentation »](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/tree/main/docs)
-
-**[Report Bug](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/issues) · [Request Feature](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/pulls)**
+**[Version française](README_fr.md)** · [Services](docs/Services.md) · [Report an issue](https://github.com/Pulpyyyy/ESPSomfy-RTS-companion/issues)
 
 </div>
 
-<br />
+**ESPSomfy-RTS Companion** brings your Somfy RTS shades, blinds, awnings, gates and garage doors into Home Assistant, through an ESP32 board running the **[ESPSomfy-RTS v4 firmware](https://github.com/Pulpyyyy/ESPSomfy-RTS)**. It finds the board on its own, follows every move, including those made with your remotes, and installs firmware updates from Home Assistant.
 
-## Overview
+## Start with the firmware
 
-**ESPSomfy-RTS-HA-enhanced** allows you to control all your devices in Home Assistant and accurately set their position. This integration relies on an ESP32 microcontroller coupled with a cheap CC1101 transceiver module, driven by the [ESPSomfy-RTS](https://github.com/Pulpyyyy/ESPSomfy-RTS) firmware.
+The integration talks to an ESP32 and a CC1101 radio module running **ESPSomfy-RTS v4**:
 
-## Requirements
+* **[Install it from your browser](https://pulpyyyy.github.io/ESPSomfy-RTS/)** (Chrome or Edge, USB cable), or with the files of the [latest release](https://github.com/Pulpyyyy/ESPSomfy-RTS/releases).
+* **Every order gets through**: orders are queued, sent as one continuous train like a remote button press, and the board listens before it transmits.
+* **Updates from GitHub in one click**, installed at boot, with an automatic return to the previous version if a new one does not start.
+* **A modern interface** for phones and computers: Home page by room, position panel, guided calibration with your remote, RF diagnostics.
+* **Secured**: PIN code or password, for the whole board or for its configuration only.
 
-This integration requires hardware running on an **ESP32** and a **CC1101** transceiver.
-To assemble and configure this hardware, please refer to the repository wiki: [components](https://github.com/Pulpyyyy/ESPSomfy-RTS). The radio protocol must be configured for your devices before using this integration.
-
----
+The [firmware wiki](https://github.com/Pulpyyyy/ESPSomfy-RTS/wiki) covers the hardware, the first start and every setting, in English and French.
 
 ## Installation
 
-### Method 1: Via HACS (Recommended)
-The easiest way to get started is to add this repository as a [Custom Repository](https://hacs.xyz/docs/faq/custom_repositories/) in HACS:
+### From the Marketplace (Home Assistant 2026.11 or later)
 
-1. Go to **HACS** → **Integrations**.
-2. Click the **3 dots** in the top right corner and select **Custom repositories**.
-3. Add the following URL: `https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced`
-4. Select **Integration** as the category, then click **Add**.
-5. Download and install the integration.
+Click the button above, or go to **Settings › Marketplace › Add from link** and enter `https://github.com/Pulpyyyy/ESPSomfy-RTS-companion`, then install **ESPSomfy-RTS Companion** and restart Home Assistant.
 
-### Method 2: Manual Installation
-Simply copy the contents of the `custom_components/espsomfy_rts_enhanced/` folder and paste it into the `config/custom_components/espsomfy_rts_enhanced/` directory of your Home Assistant instance.
+### With HACS (older versions of Home Assistant)
 
-### Initial Setup
-Once installed and Home Assistant is restarted, the integration will **automatically discover** your radio modules on the local network. Simply navigate to **Settings** → **Devices & Services**: your ESPSomfy-RTS device will show up, ready to be configured.
+**HACS › Integrations › ⋮ › Custom repositories**, add `https://github.com/Pulpyyyy/ESPSomfy-RTS-companion` with the **Integration** category, install it, then restart Home Assistant.
 
----
+### By hand
+
+Copy `custom_components/espsomfy_rts_companion/` into the `config/custom_components/` folder of Home Assistant, then restart it.
+
+### First setup
+
+Home Assistant finds the board on its own (UPnP or mDNS): it shows up in **Settings › Devices & services**, ready to be added. Enter the PIN code or password if the board has one. If Home Assistant sits on another network segment, add the integration by hand with the address of the board.
+
+## Coming from an earlier ESPSomfy-RTS integration
+
+ESPSomfy-RTS Companion carries on the earlier ESPSomfy-RTS integrations for Home Assistant, under a new domain. It takes your board over as it is: every entity keeps its entity id, every device keeps its area and its name, and history carries on.
+
+1. Remove the earlier integration from HACS, or delete its folder from `config/custom_components/`. **Leave it in Settings › Devices & services**: Companion takes over from there.
+2. Install ESPSomfy-RTS Companion as above and restart Home Assistant.
+3. Add the board when Home Assistant offers it, or by hand with its address. The PIN code or password of the earlier setup is reused, and so are its options.
+4. In your automations and scripts, replace the actions of the earlier integration (`espsomfy_rts.*` or `espsomfy_rts_enhanced.*`) with `espsomfy_rts_companion.*`. Entity ids and the `espsomfy-rts_event` events do not change.
+
+If the earlier integration was already removed from Devices & services, there is nothing left to take over: the entities get new ids, which you can rename back in their settings.
 
 ## Features
 
-* **Full Control**: Open, close, and set intermediate positions (percentages) directly from Home Assistant.
-* **State Synchronization**: The integration tracks the real-time position of the cover, even if it is operated by a physical Somfy Telis remote or via the ESP32 web interface.
-* **Simplified Updates**: You will receive a notification whenever a new version of the integration is available. Additionally, since v2.2.1 of the ESPSomfy RTS firmware, a dedicated `update` entity allows you to update your ESP32 firmware directly from the Home Assistant UI.
-* **Automations**: All shades are exposed as standard `cover` entities, ready to be added to your dashboards and used in automations via native services.
-* **Device health**: a *Connectivity* diagnostic sensor per device is `on` while the websocket is connected and the HTTP API answers (checked every minute), so automations can be conditioned on the device being reachable without an external Ping entry.
-* **Backups**: the *Backup* button (or the `espsomfy_rts_enhanced.backup` service) stores the device configuration on the Home Assistant host. A failed backup raises an error visible in automation traces, the *Last backup* sensor shows when the newest one was taken, and the number of backups kept (5 by default, 1 to 50) is set in the integration options. See [Services](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/blob/main/docs/Services.md#backup).
+* **Full control**: open, close, stop and set positions in percent, tilt included, for shades and groups.
+* **Always in sync**: positions follow the board in real time, whether the order came from Home Assistant, a remote or the board's own interface.
+* **Rooms and groups in step**: the board's rooms are Home Assistant areas, both ways. Move a shade to another area, or rename an area, and the board follows; change a room on the board and Home Assistant follows. When a shade sits in a different room on each side, nothing is changed: a repair asks which side to keep. The board's groups show up as labels on their shades. It can be turned off in the integration options.
+* **One click to the board**: the board, each shade and each group link to the matching page of the board's web interface (**Visit** on the device page).
+* **Firmware updates**: an `update` entity shows when a new ESPSomfy-RTS release is out and installs it from Home Assistant.
+* **Automations**: shades are standard `cover` entities, and the integration adds actions for steps, raw RTS commands, position correction without moving, sun and wind flags, restart and backup (see [Services](docs/Services.md)).
+* **Device health**: a *Connectivity* diagnostic sensor per board is `on` while the websocket is connected and the HTTP API answers (checked every minute).
+* **Radio health**: from the measurements of the board, the integration works out how many repeats each shade needs, the same way as the RF diagnostics page of the board. A shade that repeats too little gets a repair that sets the advised value in one click; a weak link measured with the guided session gets a warning with what to do. *Radio noise*, *Lost radio orders* and a *Radio margin* per shade are diagnostic sensors. A board still on firmware 2.x or 3.x gets a repair pointing at the browser installer.
+* **Shades and groups follow the board**: one added on the board shows up in Home Assistant by itself, one deleted on the board leaves Home Assistant with its device, even when it was deleted while Home Assistant was stopped. A device still on the board cannot be deleted by hand, it would only come back.
+* **Backups**: the *Backup* button (or the `espsomfy_rts_companion.backup` action) stores the board configuration on the Home Assistant host. A failed backup raises an error visible in automation traces, the *Last backup* sensor shows when the newest one was taken, and the number of backups kept (5 by default, 1 to 50) is set in the integration options. Every Home Assistant backup first takes a fresh copy of each board (unless one is less than an hour old), so restoring Home Assistant also brings back the configuration of your boards; a board that does not answer never makes the Home Assistant backup fail.
 
+## Events
 
-<img width="1006" height="470" alt="Capture d&#39;écran_20260527_113106" src="https://github.com/user-attachments/assets/46870a36-816e-406b-bb55-51aa91e7f178" />
+Every command the board sees (from Home Assistant, a physical remote or its web interface) is sent on the Home Assistant event bus as an `espsomfy-rts_event` event.
 
----
-
-## Event Management (Events)
-
-The integration emits events on the Home Assistant event bus for every intercepted command (whether it originates from HA, a physical remote control, or the ESP web interface). These events use the `espsomfy-rts_event` type.
-
-### Event Payload Structure
-
-| Key | Description  |
+| Key | Description |
 | :--- | :--- |
-| `entity_id` | The target entity ID in Home Assistant (e.g., `cover.living_room_shade`). |
-| `event_key` | The event trigger (currently always set to `shadeCommand`). |
-| `name` | The friendly name assigned to the device. |
-| `remote_address` | The radio address defined for the motor in ESPSomfy RTS. |
-| `source_address` | The source device address (remote control channel address or group address). |
+| `entity_id` | The target entity in Home Assistant (e.g. `cover.living_room_shade`). |
+| `event_key` | The event trigger (currently always `shadeCommand`). |
+| `name` | The name of the device. |
+| `remote_address` | The radio address of the motor in ESPSomfy-RTS. |
+| `source_address` | The address of the source (remote channel or group). |
 
-### Values for `source` (Command Origin)
-* `remote`: The user pressed a button on a physical remote control.
-* `internal`: The command was initiated from the ESPSomfy RTS internal interface.
-* `group`: The command was part of a grouped action.
+`source` says where the command came from: `remote` (a physical remote), `internal` (the board's interface) or `group` (a group command). `command` is the action: `Up`, `Down`, `My`, `StepUp`, `StepDown`, `Prog`, or a key combination (`My+Up`, `My+Down`, `Up+Down`, `My+Up+Down`).
 
-### Values for `command` (Intercepted Actions)
-* `Up` / `Down` / `My`: Standard commands (Up, Down, Stop/Favorite Position).
-* `StepUp` / `StepDown`: Step-by-step micro-adjustments.
-* `Prog`: Program button press.
-* `My+Up` / `My+Down` / `Up+Down` / `My+Up+Down`: Simultaneous physical key combinations.
+## Credits
 
----
-
-## Automations and Services
-
-Many specific services are available to enrich your automations. Check out the usage examples directly in the [Services section of the Wiki](https://github.com/Pulpyyyy/ESPSomfy-RTS-enhanced/blob/main/docs/Services.md).
+This integration started from xkain's [ESPSomfy-RTS Enhanced](https://github.com/xkain/ESPSomfy-RTS-enhanced), itself based on rstrouse's [ESPSomfy-RTS-HA](https://github.com/rstrouse/ESPSomfy-RTS-HA).

@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.espsomfy_rts_enhanced.const import DOMAIN
+from custom_components.espsomfy_rts_companion.const import DOMAIN
 
 from .conftest import API_URL, DISCOVERY_PAYLOAD, DISCOVERY_URL, HOST, LOGIN_URL, SERVER_ID
 
@@ -60,7 +60,7 @@ async def test_setup_loads_shades_and_creates_covers(
 
     # Don't open a real websocket during the test.
     with patch(
-        "custom_components.espsomfy_rts_enhanced.controller.ESPSomfyController.ws_connect",
+        "custom_components.espsomfy_rts_companion.controller.ESPSomfyController.ws_connect",
         return_value=None,
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)

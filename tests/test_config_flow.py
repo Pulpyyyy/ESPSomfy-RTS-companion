@@ -1,4 +1,4 @@
-"""Tests for the ESPSomfy-RTS Enhanced configuration flow."""
+"""Tests for the ESPSomfy-RTS Companion configuration flow."""
 
 from __future__ import annotations
 
@@ -16,8 +16,9 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.espsomfy_rts_enhanced.const import (
+from custom_components.espsomfy_rts_companion.const import (
     CONF_MAX_BACKUPS,
+    CONF_SYNC_ORGANIZATION,
     DEFAULT_MAX_BACKUPS,
     DOMAIN,
 )
@@ -50,7 +51,7 @@ async def test_user_flow_creates_the_entry(hass: HomeAssistant, aioclient_mock) 
     assert not result["errors"]
 
     with patch(
-        "custom_components.espsomfy_rts_enhanced.async_setup_entry",
+        "custom_components.espsomfy_rts_companion.async_setup_entry",
         return_value=True,
     ) as mock_setup_entry:
         result = await hass.config_entries.flow.async_configure(
@@ -152,7 +153,8 @@ async def test_options_flow_stores_the_backup_retention(
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_MAX_BACKUPS: 12}
+    # The synchronisation keeps its default when the form leaves it alone.
+    assert entry.options == {CONF_MAX_BACKUPS: 12, CONF_SYNC_ORGANIZATION: True}
     assert entry.data == {CONF_HOST: HOST}
 
 

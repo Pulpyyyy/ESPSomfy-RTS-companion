@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import statistics
 import time
@@ -20,18 +21,22 @@ from homeassistant.const import (
     UnitOfInformation,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
+    DOMAIN,
     EVT_BACKUPDONE,
     EVT_CONNECTED,
     EVT_ETHERNET,
     EVT_MEMSTATUS,
+    EVT_RADIOHEALTH,
     EVT_WIFISTRENGTH,
 )
 from .controller import ESPSomfyController
 from .entity import ESPSomfyEntity
+from .health import BoardHealth
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -43,6 +48,66 @@ class ESPSomfyDiagSensorDescription(SensorEntityDescription):
     native_value: Any | None = None
     min_interval: int = 0
     value_count: int = 1
+
+
+@dataclass(frozen=True, kw_only=True)
+class ESPSomfyRadioSensorDescription(SensorEntityDescription):
+    """A sensor read from the radio health of the board (shade_id None: the board)."""
+
+    value_fn: Callable[[BoardHealth, int | None], Any]
+    attrs_fn: Callable[[BoardHealth, int | None], dict[str, Any]] | None = None
+
+
+def _stats(health: BoardHealth) -> dict[str, Any]:
+    return health.stats or {}
+
+
+def _margin_attrs(health: BoardHealth, shade_id: int | None) -> dict[str, Any]:
+    shade = health.shades.get(shade_id, {})
+    measurement = None
+    if shade.get("margin") is not None:
+        measurement = "guided" if shade.get("guided") else "passive"
+    return {
+        "measurement": measurement,
+        "unknown_reason": shade.get("unknown_reason"),
+        "repeats": shade.get("repeats"),
+        "recommended_repeats": shade.get("recommended"),
+    }
+
+
+RADIO_NOISE = ESPSomfyRadioSensorDescription(
+    key="radio_noise",
+    translation_key="radio_noise",
+    has_entity_name=True,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+    state_class=SensorStateClass.MEASUREMENT,
+    native_unit_of_measurement="dBm",
+    suggested_display_precision=1,
+    value_fn=lambda h, _: _stats(h).get("noise") if _stats(h).get("noiseSamples") else None,
+    attrs_fn=lambda h, _: {"noise_baseline": _stats(h).get("noiseBaseline")},
+)
+RADIO_DROPPED = ESPSomfyRadioSensorDescription(
+    key="radio_dropped",
+    translation_key="radio_dropped",
+    has_entity_name=True,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    state_class=SensorStateClass.TOTAL_INCREASING,
+    icon="mdi:radio-off",
+    value_fn=lambda h, _: _stats(h).get("tx", {}).get("dropped"),
+)
+RADIO_MARGIN = ESPSomfyRadioSensorDescription(
+    key="radio_margin",
+    translation_key="radio_margin",
+    has_entity_name=True,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    device_class=SensorDeviceClass.SIGNAL_STRENGTH,
+    state_class=SensorStateClass.MEASUREMENT,
+    native_unit_of_measurement="dB",
+    suggested_display_precision=0,
+    value_fn=lambda h, shade_id: h.shades.get(shade_id, {}).get("margin"),
+    attrs_fn=_margin_attrs,
+)
 
 
 async def async_setup_entry(
@@ -275,6 +340,23 @@ async def async_setup_entry(
                 ),
             )
         )
+        health = controller.health
+        if health is not None and health.supported:
+            new_entities.append(ESPSomfyRadioSensor(controller, RADIO_NOISE))
+            new_entities.append(ESPSomfyRadioSensor(controller, RADIO_DROPPED))
+            registry = er.async_get(hass)
+            for shade in controller.api.shades:
+                shade_id = int(shade.get("shadeId", -1))
+                if shade_id not in health.shades:
+                    continue
+                if health.shades[shade_id]["linked"]:
+                    new_entities.append(ESPSomfyRadioSensor(controller, RADIO_MARGIN, shade))
+                # No remote linked: the board has nothing to measure for this
+                # shade, the margin would stay unknown for good.
+                elif entity_id := registry.async_get_entity_id(
+                    "sensor", DOMAIN, f"{RADIO_MARGIN.key}_{controller.unique_id}_{shade_id}"
+                ):
+                    registry.async_remove(entity_id)
     if new_entities:
         async_add_entities(new_entities)
 
@@ -410,4 +492,49 @@ class ESPSomfyLastBackupSensor(ESPSomfyEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         if self._controller.data.get("event") in self.events:
+            self.async_write_ha_state()
+
+
+class ESPSomfyRadioSensor(ESPSomfyEntity, SensorEntity):
+    """A value of the radio health, for the board or one of its shades."""
+
+    entity_description: ESPSomfyRadioSensorDescription
+
+    def __init__(
+        self,
+        controller: ESPSomfyController,
+        description: ESPSomfyRadioSensorDescription,
+        shade: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize the sensor; a shade puts it on the device of that shade."""
+        super().__init__(data=shade, controller=controller)
+        self.entity_description = description
+        self._shade_id = int(shade["shadeId"]) if shade else None
+        suffix = "" if shade is None else f"_{self._shade_id}"
+        self._attr_unique_id = f"{description.key}_{controller.unique_id}{suffix}"
+
+    @property
+    def available(self) -> bool:
+        """Available once the board has published its radio statistics."""
+        return self.controller.health is not None and self.controller.health.supported
+
+    @property
+    def native_value(self) -> Any:
+        """The value, read from the last radio statistics."""
+        health = self.controller.health
+        if health is None:
+            return None
+        return self.entity_description.value_fn(health, self._shade_id)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Details of the value."""
+        health = self.controller.health
+        if health is None or self.entity_description.attrs_fn is None:
+            return None
+        return self.entity_description.attrs_fn(health, self._shade_id)
+
+    def _handle_coordinator_update(self) -> None:
+        """Write the state after each reading of the radio statistics."""
+        if self.controller.data.get("event") == EVT_RADIOHEALTH:
             self.async_write_ha_state()

@@ -9,12 +9,12 @@ import pytest
 
 from homeassistant.components.cover import CoverEntityFeature
 
-from custom_components.espsomfy_rts_enhanced.const import (
+from custom_components.espsomfy_rts_companion.const import (
     EVT_GROUPSTATE,
     EVT_SHADESTATE,
 )
-from custom_components.espsomfy_rts_enhanced.controller import SocketListener
-from custom_components.espsomfy_rts_enhanced.cover import (
+from custom_components.espsomfy_rts_companion.controller import SocketListener
+from custom_components.espsomfy_rts_companion.cover import (
     ESPSomfyShade,
     _linked_shade_ids,
 )

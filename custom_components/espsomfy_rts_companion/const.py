@@ -10,7 +10,7 @@ from homeassistant.const import Platform
 VERSION = "v" + json.loads(
     (Path(__file__).parent / "manifest.json").read_text(encoding="utf-8")
 )["version"]
-DOMAIN = "espsomfy_rts_enhanced"
+DOMAIN = "espsomfy_rts_companion"
 MANUFACTURER = "Pulpyyyy"
 API_SHADES = "/shades"
 API_GROUPS = "/groups"
@@ -27,9 +27,12 @@ API_REBOOT = "/reboot"
 EVT_SHADESTATE = "shadeState"
 EVT_GROUPSTATE = "groupState"
 EVT_GROUPREMOVED = "groupRemoved"
+EVT_GROUPADDED = "groupAdded"
 EVT_SHADECOMMAND = "shadeCommand"
 EVT_SHADEADDED = "shadeAdded"
 EVT_SHADEREMOVED = "shadeRemoved"
+EVT_ROOMADDED = "roomAdded"
+EVT_ROOMREMOVED = "roomRemoved"
 EVT_CONNECTED = "connected"
 EVT_FWSTATUS = "fwStatus"
 EVT_UPDPROGRESS = "updateProgress"
@@ -40,8 +43,18 @@ EVT_MEMSTATUS = "memStatus"
 # firmware (the websocket filter would drop them anyway).
 EVT_HTTPPROBE = "httpProbe"
 EVT_BACKUPDONE = "backupDone"
+# Published by the integration itself after reading the radio statistics.
+EVT_RADIOHEALTH = "radioHealth"
+
+# Browser installer of the firmware.
+FLASHER_URL = "https://pulpyyyy.github.io/ESPSomfy-RTS/"
 
 CONF_MAX_BACKUPS = "max_backups"
+# Rooms <-> areas and groups -> labels (see organization.py).
+CONF_SYNC_ORGANIZATION = "sync_organization"
+DEFAULT_SYNC_ORGANIZATION = True
+# Longest room name the board stores.
+ROOM_NAME_MAX = 20
 DEFAULT_MAX_BACKUPS = 5
 MIN_BACKUPS = 1
 MAX_BACKUPS = 50

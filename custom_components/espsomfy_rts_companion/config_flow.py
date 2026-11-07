@@ -21,7 +21,19 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.util.network import is_host_valid
 
-from .const import CONF_MAX_BACKUPS, DEFAULT_MAX_BACKUPS, DOMAIN, MAX_BACKUPS, MIN_BACKUPS
+from .const import (
+    CONF_MAX_BACKUPS,
+    CONF_SYNC_ORGANIZATION,
+    DEFAULT_MAX_BACKUPS,
+    DEFAULT_SYNC_ORGANIZATION,
+    DOMAIN,
+    MAX_BACKUPS,
+    MIN_BACKUPS,
+)
+
+# Settings kept in the entry options; everything else goes to the entry data.
+OPTION_KEYS = (CONF_MAX_BACKUPS, CONF_SYNC_ORGANIZATION)
+from .adopt import previous_entry
 from .controller import (
     DiscoveryError,
     ESPSomfyAPI,
@@ -62,6 +74,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    def _carry_over(self, data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Data and options of the new entry, completed from an earlier integration.
+
+        The same board set up under an earlier ESPSomfy-RTS integration keeps its
+        PIN or password and its options; what was entered here wins. Its entities
+        and devices are taken over when the entry is set up (adopt.py).
+        """
+        previous = previous_entry(self.hass, self.unique_id)
+        if previous is None:
+            return dict(data), {}
+        credentials = {
+            k: previous.data[k] for k in (CONF_USERNAME, CONF_PASSWORD, CONF_PIN) if previous.data.get(k)
+        }
+        options = {k: previous.options[k] for k in OPTION_KEYS if k in previous.options}
+        return {**credentials, **{k: v for k, v in data.items() if v}}, options
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -77,17 +105,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await api.discover()
                 await self.async_set_unique_id(f"espsomfy_{api.server_id}")
                 self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
+                data, options = self._carry_over(user_input)
                 await api.login(
                     {
-                        "username": user_input.get(CONF_USERNAME, ""),
-                        "password": user_input.get(CONF_PASSWORD, ""),
-                        "pin": user_input.get(CONF_PIN, ""),
+                        "username": data.get(CONF_USERNAME, ""),
+                        "password": data.get(CONF_PASSWORD, ""),
+                        "pin": data.get(CONF_PIN, ""),
                     }
                 )
                 return self.async_create_entry(
                     title=api.deviceName,
                     description=f"ESPSomfy-RTS {api.server_id}",
-                    data=user_input,
+                    data=data,
+                    options=options,
                 )
             except InvalidHost:
                 errors[CONF_HOST] = "invalid_host"
@@ -138,11 +168,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle a flow initiated by zeroconf."""
         if user_input is not None:
+            data, options = self._carry_over({CONF_HOST: self.zero_conf.host})
             return self.async_create_entry(
-                title=self.zero_conf.hostname,
-                data={
-                    CONF_HOST: self.zero_conf.host,
-                },
+                title=self.zero_conf.hostname, data=data, options=options
             )
 
         return self.async_show_form(
@@ -207,12 +235,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Get the options flow for espsomfy_rts_enhanced."""
+        """Get the options flow for espsomfy_rts_companion."""
         return ESPSomfyOptionsFlowHandler(config_entry)
 
 
 class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
-    """Options flow for espsomfy_rts_enhanced component."""
+    """Options flow for espsomfy_rts_companion component."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize the OptionsFlow."""
@@ -227,16 +255,19 @@ class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Configure options for espsomfy_rts_enhanced."""
+        """Configure options for espsomfy_rts_companion."""
         errors = {}
         if user_input is not None:
             # The connection settings live in the entry data, the backup
-            # retention is a true option.
-            data = {k: v for k, v in user_input.items() if k != CONF_MAX_BACKUPS}
+            # retention and the synchronisation are true options.
+            data = {k: v for k, v in user_input.items() if k not in OPTION_KEYS}
             options = {
                 CONF_MAX_BACKUPS: user_input.get(
                     CONF_MAX_BACKUPS, self._max_backups()
-                )
+                ),
+                CONF_SYNC_ORGANIZATION: bool(
+                    user_input.get(CONF_SYNC_ORGANIZATION, self._sync_organization())
+                ),
             }
             try:
                 if not is_host_valid(data[CONF_HOST]):
@@ -281,6 +312,9 @@ class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
                     ): vol.All(
                         vol.Coerce(int), vol.Range(min=MIN_BACKUPS, max=MAX_BACKUPS)
                     ),
+                    vol.Optional(
+                        CONF_SYNC_ORGANIZATION, default=self._sync_organization()
+                    ): bool,
                 }
             ),
             errors=errors,
@@ -290,6 +324,14 @@ class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):
         """Current retention, the default for entries created before the option."""
         return int(
             self._config_entry.options.get(CONF_MAX_BACKUPS, DEFAULT_MAX_BACKUPS)
+        )
+
+    def _sync_organization(self) -> bool:
+        """Whether rooms and groups follow the board, on unless turned off."""
+        return bool(
+            self._config_entry.options.get(
+                CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION
+            )
         )
 
 

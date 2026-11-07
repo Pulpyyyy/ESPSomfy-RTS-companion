@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import contextlib
 from datetime import datetime
 import glob
 import json
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiofiles
 import aiohttp
@@ -17,13 +18,14 @@ from packaging.version import parse as version_parse
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PIN, CONF_USERNAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     aiohttp_client,
     device_registry as dr,
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -46,10 +48,13 @@ from .const import (
     EVT_CONNECTED,
     EVT_ETHERNET,
     EVT_FWSTATUS,
+    EVT_GROUPADDED,
     EVT_GROUPREMOVED,
     EVT_GROUPSTATE,
     EVT_HTTPPROBE,
     EVT_MEMSTATUS,
+    EVT_ROOMADDED,
+    EVT_ROOMREMOVED,
     EVT_SHADEADDED,
     EVT_SHADECOMMAND,
     EVT_SHADEREMOVED,
@@ -57,6 +62,10 @@ from .const import (
     EVT_UPDPROGRESS,
     EVT_WIFISTRENGTH,
 )
+
+if TYPE_CHECKING:
+    from .health import BoardHealth
+    from .organization import OrganizationSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,7 +75,11 @@ WS_RECONNECT_MAX_DELAY = 20
 # The websocket alone can look healthy while the HTTP API, which every command
 # and the backup go through, no longer answers. A light GET checks it.
 PROBE_INTERVAL = 60
+# Rooms, groups and radio statistics are read again every this many probes.
+ORGANIZATION_REFRESH_PROBES = 5
 PROBE_TIMEOUT = 5
+# Seconds between a shade or group added on the board and the reload.
+RELOAD_DELAY = 5
 
 # The backup holds the WiFi passphrase in clear text, the device needs it to
 # restore itself, so both the directory and the files stay owner readable only.
@@ -86,6 +99,16 @@ def _prepare_backup_dir(path: str) -> None:
 def _open_private(path: str, flags: int) -> int:
     """Open a backup file with owner-only permissions."""
     return os.open(path, flags, BACKUP_FILE_MODE)
+
+
+def _rotate_backups(backup_dir: str, keep: int) -> None:
+    """Keep only the most recent `keep` files (blocking, run in executor)."""
+    if not os.path.exists(backup_dir):
+        return
+    files = glob.glob(os.path.join(backup_dir, "*.backup"))
+    files.sort(key=os.path.getmtime, reverse=True)
+    for file_path in files[keep:]:
+        os.remove(file_path)
 
 
 def _scan_backups(backup_dir: str) -> tuple[datetime | None, int]:
@@ -242,6 +265,12 @@ class ESPSomfyController(DataUpdateCoordinator):
         self._ws_opened = False
         self._probe_task: asyncio.Task | None = None
         self._probe_now = asyncio.Event()
+        self._probes = 0
+        self._cancel_reload: Callable[[], None] | None = None
+        # Rooms and groups synchronisation, set by async_setup_entry when enabled.
+        self.organization: OrganizationSync | None = None
+        # Radio health checks, set by async_setup_entry.
+        self.health: BoardHealth | None = None
         # Newest local backup, refreshed from disk at setup and after a backup.
         self.last_backup: datetime | None = None
         self.backup_count = 0
@@ -329,9 +358,12 @@ class ESPSomfyController(DataUpdateCoordinator):
                 EVT_CONNECTED,
                 EVT_SHADEADDED,
                 EVT_SHADEREMOVED,
+                EVT_ROOMADDED,
+                EVT_ROOMREMOVED,
                 EVT_SHADESTATE,
                 EVT_SHADECOMMAND,
                 EVT_GROUPSTATE,
+                EVT_GROUPADDED,
                 EVT_GROUPREMOVED,
                 EVT_FWSTATUS,
                 EVT_UPDPROGRESS,
@@ -370,6 +402,41 @@ class ESPSomfyController(DataUpdateCoordinator):
                     await self._probe_now.wait()
             self._probe_now.clear()
             await self.async_probe()
+            # Room renames and moves are not reported on the websocket.
+            self._probes += 1
+            if self._probes % ORGANIZATION_REFRESH_PROBES == 0:
+                if self.organization is not None:
+                    await self.organization.async_try_refresh()
+                if self.health is not None:
+                    # The synchronisation has just read the shades again.
+                    await self.health.async_try_refresh(reload=self.organization is None)
+
+    @callback
+    def _remove_device(self, identifier: str) -> None:
+        """Drop a device deleted on the board, with its entities."""
+        devices = dr.async_get(self.hass)
+        device = devices.async_get_device(identifiers={(DOMAIN, identifier)})
+        if device is not None and self.config_entry_id in device.config_entries:
+            devices.async_update_device(device.id, remove_config_entry_id=self.config_entry_id)
+
+    @callback
+    def _schedule_reload(self) -> None:
+        if self._cancel_reload is not None:
+            self._cancel_reload()
+
+        @callback
+        def _reload(_now: datetime) -> None:
+            self._cancel_reload = None
+            self.hass.config_entries.async_schedule_reload(self.config_entry_id)
+
+        self._cancel_reload = async_call_later(self.hass, RELOAD_DELAY, _reload)
+
+    @callback
+    def cancel_reload(self) -> None:
+        """Forget a reload that has not started yet."""
+        if self._cancel_reload is not None:
+            self._cancel_reload()
+            self._cancel_reload = None
 
     async def async_probe(self) -> bool:
         """Probe the HTTP API once and publish the result."""
@@ -414,6 +481,20 @@ class ESPSomfyController(DataUpdateCoordinator):
         """Create a backup of the configuration and stores it in HA."""
         return await self.api.create_backup()
 
+    async def async_backup(self) -> bool:
+        """Back the board up, then keep the configured number of copies."""
+        if not await self.api.create_backup():
+            return False
+        # Only after a backup was written, in the directory it was written to.
+        try:
+            await self.hass.async_add_executor_job(
+                _rotate_backups, self.api.backup_dir, self.max_backups
+            )
+        except OSError as ex:
+            _LOGGER.warning("Could not rotate backup files: %s", ex)
+        await self.async_update_backup_info()
+        return True
+
     async def update_firmware(self, version) -> bool:
         """Start the firmware update process."""
         return await self.api.update_firmware(version)
@@ -441,6 +522,25 @@ class ESPSomfyController(DataUpdateCoordinator):
         # this will allow us to simply update the latest firmware
         if "event" in data and data["event"] == EVT_FWSTATUS:
             self.api.set_firmware(data)
+        if data.get("event") == EVT_SHADEREMOVED and "shadeId" in data:
+            self._remove_device(f"shade_{self.unique_id}_{data['shadeId']}")
+            if self.health is not None:
+                # Its repairs go with it.
+                self.config_entry.async_create_background_task(
+                    self.hass, self.health.async_try_refresh(), "espsomfy_rts_health"
+                )
+        if data.get("event") in (EVT_SHADEADDED, EVT_GROUPADDED):
+            # New entities only come with a reload of the entry; wait for the
+            # burst of events that follows an addition.
+            self._schedule_reload()
+        if self.organization is not None and data.get("event") in (
+            EVT_ROOMADDED,
+            EVT_ROOMREMOVED,
+            EVT_SHADEADDED,
+            EVT_SHADEREMOVED,
+            EVT_GROUPREMOVED,
+        ):
+            self.organization.schedule_refresh()
 
         self.async_set_updated_data(data=data)
 
@@ -499,6 +599,11 @@ class ESPSomfyAPI:
         # /rooms is small and has no side effect, unlike /discovery which also
         # makes the firmware broadcast its whole network state on the socket.
         self._probe_path = API_ROOMS
+
+    @property
+    def rooms(self) -> Any:
+        """Return the rooms of the board."""
+        return self._config.get("rooms", [])
 
     @property
     def shades(self) -> Any:
@@ -816,6 +921,82 @@ class ESPSomfyAPI:
                 self._config["groups"] = await resp.json()
                 return self._config["groups"]
             _LOGGER.error(await resp.text())
+
+    async def load_rooms(self) -> Any | None:
+        """Load the rooms of the board."""
+        async with self._session.get(
+            f"{self._api_url}{API_ROOMS}", headers=self._headers
+        ) as resp:
+            if resp.status == 200:
+                self._config["rooms"] = await resp.json()
+                return self._config["rooms"]
+            _LOGGER.debug("ESPSomfy-RTS rooms not read: %s", resp.status)
+        return None
+
+    async def _put_config(self, path: str, data: dict[str, Any]) -> Any | None:
+        """Write to a configuration route of the board.
+
+        These routes are served by the web interface port, not by the API port
+        the rest of the integration uses; the same key is accepted on both.
+        """
+        try:
+            async with self._session.put(
+                f"{self._config_url}{path}",
+                json=data,
+                headers=self._headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.json(content_type=None)
+                _LOGGER.warning(
+                    "ESPSomfy-RTS %s refused %s: %s", self._deviceName, path, await resp.text()
+                )
+        except (aiohttp.ClientError, OSError, TimeoutError) as ex:
+            _LOGGER.warning("ESPSomfy-RTS %s: %s failed: %s", self._deviceName, path, ex)
+        return None
+
+    async def load_rf_stats(self) -> dict[str, Any] | None:
+        """Read the radio statistics of the board, None when it has none."""
+        try:
+            async with self._session.get(
+                f"{self._config_url}/rfStats",
+                headers=self._headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 200:
+                    stats = await resp.json(content_type=None)
+                    return stats if isinstance(stats, dict) else None
+                _LOGGER.debug("ESPSomfy-RTS %s: no radio statistics (%s)", self._deviceName, resp.status)
+        except (aiohttp.ClientError, OSError, TimeoutError, ValueError) as ex:
+            _LOGGER.debug("ESPSomfy-RTS %s: radio statistics not read: %s", self._deviceName, ex)
+        return None
+
+    async def save_shade_repeats(self, shade_id: int, repeats: int) -> Any | None:
+        """Set how many times the board repeats the orders of a shade."""
+        shade = await self._put_config("/saveShade", {"shadeId": shade_id, "repeats": repeats})
+        if shade is not None:
+            for known in self._config.get("shades", []):
+                if known.get("shadeId") == shade_id:
+                    known["repeats"] = repeats
+        return shade
+
+    async def save_shade_room(self, shade_id: int, room_id: int) -> Any | None:
+        """Move a shade to a room of the board."""
+        shade = await self._put_config("/saveShade", {"shadeId": shade_id, "roomId": room_id})
+        if shade is not None:
+            for known in self._config.get("shades", []):
+                if known.get("shadeId") == shade_id:
+                    known["roomId"] = room_id
+        return shade
+
+    async def add_room(self, name: str) -> Any | None:
+        """Create a room on the board; None when it has no free room left."""
+        room = await self._put_config("/addRoom", {"name": name})
+        return room if isinstance(room, dict) and "roomId" in room else None
+
+    async def save_room(self, room_id: int, name: str) -> Any | None:
+        """Rename a room of the board."""
+        return await self._put_config("/saveRoom", {"roomId": room_id, "name": name})
 
     async def tilt_open(self, shade_id: int):
         """Send the command to open the tilt."""

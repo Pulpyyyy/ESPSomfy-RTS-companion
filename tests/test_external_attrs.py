@@ -19,8 +19,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.espsomfy_rts_enhanced.const import DOMAIN
-from custom_components.espsomfy_rts_enhanced.cover import (
+from custom_components.espsomfy_rts_companion.const import DOMAIN
+from custom_components.espsomfy_rts_companion.cover import (
     EXTERNAL_ATTRS_DATA,
     EXTERNAL_ATTRS_SIGNAL,
     ESPSomfyShade,
@@ -174,7 +174,7 @@ async def test_shade_registers_as_reader_and_carries_injected(
     entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.espsomfy_rts_enhanced.controller.ESPSomfyController.ws_connect",
+        "custom_components.espsomfy_rts_companion.controller.ESPSomfyController.ws_connect",
         return_value=None,
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)

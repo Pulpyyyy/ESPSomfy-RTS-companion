@@ -73,12 +73,14 @@
           "username": "Nom d'utilisateur",
           "password": "Mot de passe",
           "pin": "Code PIN",
-          "max_backups": "Nombre de backups à conserver"
+          "max_backups": "Nombre de backups à conserver",
+          "sync_organization": "Synchroniser les pièces et les groupes"
         },
         "title": "Configurer ESPSomfy-RTS",
         "description": "Paramétrage des options de sécurité configurées pour votre dispositif",
         "data_description": {
-          "max_backups": "Au-delà de ce nombre, les plus anciens fichiers de backup de ce boîtier sont supprimés (1 à 50)"
+          "max_backups": "Au-delà de ce nombre, les plus anciens fichiers de backup de ce boîtier sont supprimés (1 à 50)",
+          "sync_organization": "Les pièces de la carte deviennent des zones, dans les deux sens : déplacer un volet dans une autre zone ou renommer une zone modifie aussi la carte. Les groupes de la carte deviennent des étiquettes sur leurs volets."
         }
       }
     }
@@ -147,6 +149,25 @@
       },
       "last_backup": {
         "name": "Dernier backup"
+      },
+      "radio_noise": {
+        "name": "Bruit radio"
+      },
+      "radio_dropped": {
+        "name": "Ordres radio perdus"
+      },
+      "radio_margin": {
+        "name": "Marge radio",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Raison de la valeur inconnue",
+            "state": {
+              "no_linked_remote": "Aucune télécommande liée à ce volet",
+              "remote_not_heard": "Télécommande liée pas encore entendue",
+              "noise_not_measured": "Bruit de fond pas encore mesuré"
+            }
+          }
+        }
       }
     },
     "switch": {
@@ -283,6 +304,53 @@
   "exceptions": {
     "backup_failed": {
       "message": "Le backup de {name} a échoué : le boîtier est injoignable ou n'a pas renvoyé sa configuration"
+    }
+  },
+  "issues": {
+    "room_limit": {
+      "title": "Plus de pièce libre sur {device}",
+      "description": "La zone **{area}** n'a pas pu être ajoutée comme pièce sur {device} : la carte a déjà son maximum de 16 pièces. Supprimez une pièce sur la carte, ou remettez le volet dans une zone qui a déjà sa pièce."
+    },
+    "organization_conflict": {
+      "title": "Les pièces diffèrent entre {device} et Home Assistant",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Quel côté garder ?",
+            "description": "{count} volet(s) de {device} sont dans une pièce sur la carte et dans une autre zone dans Home Assistant. Rien n'a encore été modifié : choisissez le côté à garder, l'autre s'aligne dessus.",
+            "menu_options": {
+              "board": "Garder les pièces de la carte",
+              "home_assistant": "Garder les zones de Home Assistant"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "La carte n'est pas chargée, réessayez une fois qu'elle est connectée."
+        }
+      }
+    },
+    "repeats_low": {
+      "title": "Pas assez de répétitions pour {shade}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Répéter davantage les ordres de {shade} ?",
+            "description": "{device} envoie chaque ordre de **{shade}** avec {current} répétition(s) ; {recommended} sont conseillées d'après les mesures de la carte. Avec trop peu de répétitions, une trame perdue est un ordre ignoré, et le volet ne répond « que parfois ». Validez pour régler {recommended} répétitions sur la carte."
+          }
+        },
+        "abort": {
+          "not_loaded": "La carte n'est pas chargée, réessayez une fois qu'elle est connectée.",
+          "cannot_connect": "La carte n'a pas accepté le changement, réessayez quand elle est joignable."
+        }
+      }
+    },
+    "weak_link": {
+      "title": "Liaison radio faible vers {shade}",
+      "description": "La mesure guidée de **{shade}** n'est qu'à {margin} dB au-dessus du bruit de {device}. Ajouter des répétitions sauve rarement une telle liaison : déplacez la carte ou son antenne, ou ajoutez un répéteur, puis mesurez à nouveau depuis la page Diagnostic RF de la carte."
+    },
+    "firmware_outdated": {
+      "title": "Firmware {version} sur {device}",
+      "description": "{device} fait tourner le firmware {version}. ESPSomfy-RTS Companion est fait pour le firmware ESPSomfy-RTS v4 : ordres mis en file et envoyés en un train continu, écoute avant émission, diagnostic radio, mises à jour depuis GitHub. Installez-le depuis votre navigateur avec le lien ci-dessous, après une sauvegarde de la carte."
     }
   }
 }

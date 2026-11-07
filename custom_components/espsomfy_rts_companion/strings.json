@@ -73,12 +73,14 @@
           "username": "Username",
           "password": "Password",
           "pin": "Pin Number",
-          "max_backups": "Number of backups to keep"
+          "max_backups": "Number of backups to keep",
+          "sync_organization": "Synchronise rooms and groups"
         },
         "title": "Configure ESPSomfy RTS",
         "description": "Provide the configured security options for your device",
         "data_description": {
-          "max_backups": "Older backup files of this device are deleted beyond this number (1 to 50)"
+          "max_backups": "Older backup files of this device are deleted beyond this number (1 to 50)",
+          "sync_organization": "The board's rooms become areas, both ways: moving a shade to another area or renaming an area changes the board too. The board's groups become labels on their shades."
         }
       }
     }
@@ -147,6 +149,25 @@
       },
       "last_backup": {
         "name": "Last backup"
+      },
+      "radio_noise": {
+        "name": "Radio noise"
+      },
+      "radio_dropped": {
+        "name": "Lost radio orders"
+      },
+      "radio_margin": {
+        "name": "Radio margin",
+        "state_attributes": {
+          "unknown_reason": {
+            "name": "Reason the margin is unknown",
+            "state": {
+              "no_linked_remote": "No remote linked to this shade",
+              "remote_not_heard": "Linked remote not heard yet",
+              "noise_not_measured": "Background noise not measured yet"
+            }
+          }
+        }
       }
     },
     "switch": {
@@ -283,6 +304,53 @@
   "exceptions": {
     "backup_failed": {
       "message": "Backup of {name} failed: the device is unreachable or did not return its configuration"
+    }
+  },
+  "issues": {
+    "room_limit": {
+      "title": "Not enough rooms on {device}",
+      "description": "The area **{area}** could not be added as a room on {device}: the board already has its maximum of 16 rooms. Delete a room on the board, or move the shade back to an area that already has its room."
+    },
+    "organization_conflict": {
+      "title": "Rooms differ between {device} and Home Assistant",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Keep which side?",
+            "description": "{count} shade(s) of {device} are in a room on the board and in another area in Home Assistant. Nothing has been changed yet: choose the side to keep, the other one is aligned on it.",
+            "menu_options": {
+              "board": "Keep the rooms of the board",
+              "home_assistant": "Keep the areas of Home Assistant"
+            }
+          }
+        },
+        "abort": {
+          "not_loaded": "The board is not loaded, try again once it is connected."
+        }
+      }
+    },
+    "repeats_low": {
+      "title": "Too few repeats for {shade}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Repeat the orders of {shade} more?",
+            "description": "{device} sends each order for **{shade}** with {current} repeat(s); {recommended} are advised from what the board measures. With too few repeats, one lost frame is one ignored order, and the shade only answers \"sometimes\". Submit to set {recommended} repeats on the board."
+          }
+        },
+        "abort": {
+          "not_loaded": "The board is not loaded, try again once it is connected.",
+          "cannot_connect": "The board did not accept the change, try again once it is reachable."
+        }
+      }
+    },
+    "weak_link": {
+      "title": "Weak radio link to {shade}",
+      "description": "The guided measurement of **{shade}** is only {margin} dB above the noise of {device}. More repeats rarely save such a link: move the board or its antenna, or add a repeater, then measure again from the RF diagnostics page of the board."
+    },
+    "firmware_outdated": {
+      "title": "Firmware {version} on {device}",
+      "description": "{device} runs firmware {version}. ESPSomfy-RTS Companion is made for the ESPSomfy-RTS v4 firmware: queued orders sent as one continuous train, listen before transmit, radio diagnostics, updates from GitHub. Install it from your browser with the link below, after a backup of the board."
     }
   }
 }

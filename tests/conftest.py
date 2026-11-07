@@ -1,4 +1,4 @@
-"""Fixtures shared by the ESPSomfy-RTS Enhanced tests."""
+"""Fixtures shared by the ESPSomfy-RTS Companion tests."""
 
 from __future__ import annotations
 

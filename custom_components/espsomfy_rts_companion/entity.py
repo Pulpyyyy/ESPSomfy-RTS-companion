@@ -35,6 +35,8 @@ class ESPSomfyEntity(CoordinatorEntity[ESPSomfyController], Entity):
                 manufacturer=MANUFACTURER,
                 model="ESPSomfy-RTS Group",
                 via_device=(DOMAIN, self.controller.unique_id),
+                # "Visit" opens the groups page of the board's web interface.
+                configuration_url=f"{self.controller.api.get_config_url()}/#divSomfyGroups",
             )
 
         # 🟢 Cas 2 : L'entité est liée à un Volet/Store (Shade) spécifique
@@ -46,6 +48,8 @@ class ESPSomfyEntity(CoordinatorEntity[ESPSomfyController], Entity):
                 manufacturer=MANUFACTURER,
                 model="ESPSomfy-RTS Device",
                 via_device=(DOMAIN, self.controller.unique_id),
+                # "Visit" opens the shades page of the board's web interface.
+                configuration_url=f"{self.controller.api.get_config_url()}/#pgShades",
                 # Firmware room as the initial HA area: only honoured when the
                 # device is first registered, HA owns the assignment afterwards.
                 suggested_area=self.controller.room_name(self._data.get("roomId")),
@@ -57,7 +61,7 @@ class ESPSomfyEntity(CoordinatorEntity[ESPSomfyController], Entity):
             identifiers={(DOMAIN, self.controller.unique_id)},
             name=self.controller.device_name,
             manufacturer=MANUFACTURER,
-            model=f"ESPSomfy-RTS Enhanced Integration {VERSION}",
+            model=f"ESPSomfy-RTS Companion {VERSION}",
             sw_version=self.controller.version,
             hw_version=None,
         )
