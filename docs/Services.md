@@ -66,3 +66,18 @@ automation:
         target:
           entity_id: button.espsomfyrts_backup
 ```
+
+# restore
+Sends a stored backup back to the ESPSomfy RTS device and restores the chosen sections.  Targets the backup button entity of the device.
+
+The device reboots once the restore is applied.  By default only the shades (and groups) are restored; the `sections` field also accepts `settings`, `network`, `transceiver`, `repeaters` and `mqtt`.  The `backup` field names the file to restore from the device's `ESPSomfyRTS_<serverId>` directory; leave it empty to use the most recent one.  The call fails with an error when the device is offline (no request is sent then) or when it rejects the restore.
+
+```yaml
+action: espsomfy_rts_companion.restore
+target:
+  entity_id: button.espsomfyrts_backup
+data:
+  sections:
+    - shades
+  backup: "2026-11-07T20_00_00.backup"
+```

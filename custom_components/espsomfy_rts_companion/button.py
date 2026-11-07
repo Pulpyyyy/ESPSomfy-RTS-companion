@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import logging
 
 from packaging.version import Version, parse as version_parse
+import voluptuous as vol
 
 from homeassistant.components.button import (
     ButtonDeviceClass,
@@ -16,17 +17,18 @@ from homeassistant.components.button import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_platform
+from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .__init__ import ESPSomfyRTSEntityFeature
-from .const import API_REBOOT, DOMAIN, EVT_CONNECTED
+from .const import API_REBOOT, DOMAIN, EVT_CONNECTED, RESTORE_SECTIONS
 from .controller import ESPSomfyController
 from .entity import ESPSomfyEntity
 
 SVC_REBOOT = "reboot"
 SVC_BACKUP = "backup"
+SVC_RESTORE = "restore"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,6 +100,17 @@ async def async_setup_entry(
         func="async_press",
         required_features=[ESPSomfyRTSEntityFeature.BACKUP],
     )
+    platform.async_register_entity_service(
+        name=SVC_RESTORE,
+        schema={
+            vol.Optional("sections", default=["shades"]): vol.All(
+                cv.ensure_list, [vol.In(RESTORE_SECTIONS)], vol.Length(min=1)
+            ),
+            vol.Optional("backup"): cv.string,
+        },
+        func="async_restore",
+        required_features=[ESPSomfyRTSEntityFeature.BACKUP],
+    )
 
 
 class ESPSomfyButton(ESPSomfyEntity, ButtonEntity):
@@ -157,6 +170,24 @@ class ESPSomfyButton(ESPSomfyEntity, ButtonEntity):
         return HomeAssistantError(
             translation_domain=DOMAIN,
             translation_key="backup_failed",
+            translation_placeholders={"name": self._controller.device_name},
+        )
+
+    async def async_restore(
+        self, sections: list[str], backup: str | None = None
+    ) -> None:
+        """Send a stored backup back to the board; it reboots on success."""
+        if self._controller.connectivity is False:
+            raise self._restore_failed()
+        options = {section: section in sections for section in RESTORE_SECTIONS}
+        if not await self._controller.restore_backup(options, backup):
+            raise self._restore_failed()
+
+    def _restore_failed(self) -> HomeAssistantError:
+        """Build the error raised when a restore could not be sent."""
+        return HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="restore_failed",
             translation_placeholders={"name": self._controller.device_name},
         )
 

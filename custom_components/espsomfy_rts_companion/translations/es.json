@@ -299,11 +299,28 @@
     "backup": {
       "name": "Copia de seguridad",
       "description": "Inicia una copia de seguridad de la configuración del dispositivo ESPSomfy-RTS. El archivo contiene la contraseña WiFi en texto plano y se guarda con permisos solo para el propietario en el directorio de configuración de Home Assistant"
+    },
+    "restore": {
+      "name": "Restaurar",
+      "description": "Envía una copia de seguridad guardada al dispositivo y restaura las secciones elegidas. El dispositivo se reinicia al terminar.",
+      "fields": {
+        "sections": {
+          "name": "Secciones",
+          "description": "Qué partes de la copia restaurar."
+        },
+        "backup": {
+          "name": "Archivo de copia",
+          "description": "Nombre del archivo de copia a restaurar. Dejar vacío para el más reciente."
+        }
+      }
     }
   },
   "exceptions": {
     "backup_failed": {
       "message": "La copia de seguridad de {name} ha fallado: el dispositivo no es accesible o no ha devuelto su configuración"
+    },
+    "restore_failed": {
+      "message": "No se ha podido restaurar la copia en {name}. El dispositivo no es accesible o ha rechazado la restauración."
     }
   },
   "issues": {
@@ -351,6 +368,23 @@
     "firmware_outdated": {
       "title": "Firmware {version} en {device}",
       "description": "{device} ejecuta el firmware {version}. ESPSomfy-RTS Companion está hecho para el firmware ESPSomfy-RTS v4: órdenes en cola enviadas en un tren continuo, escucha antes de emitir, diagnóstico de radio, actualizaciones desde GitHub. Instálalo desde tu navegador con el enlace de abajo, tras una copia de seguridad de la placa."
+    }
+  },
+  "selector": {
+    "restore_sections": {
+      "options": {
+        "shades": "Persianas y grupos",
+        "settings": "Ajustes generales",
+        "network": "Red",
+        "transceiver": "Radio",
+        "repeaters": "Repetidores",
+        "mqtt": "MQTT"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "command_received": "{entity_name} ha recibido una orden"
     }
   }
 }

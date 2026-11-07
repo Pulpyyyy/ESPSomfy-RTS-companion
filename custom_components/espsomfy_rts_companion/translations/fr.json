@@ -299,11 +299,28 @@
     "backup": {
       "name": "Sauvegarder",
       "description": "Lance une sauvegarde de la configuration du boîtier ESPSomfy-RTS. Le fichier contient la phrase secrète WiFi en clair, il est écrit en accès propriétaire seul dans le répertoire de configuration de Home Assistant"
+    },
+    "restore": {
+      "name": "Restaurer",
+      "description": "Renvoie un backup enregistré vers le boîtier et restaure les sections choisies. Le boîtier redémarre une fois terminé.",
+      "fields": {
+        "sections": {
+          "name": "Sections",
+          "description": "Quelles parties du backup restaurer."
+        },
+        "backup": {
+          "name": "Fichier de backup",
+          "description": "Nom du fichier de backup à restaurer. Laisser vide pour le plus récent."
+        }
+      }
     }
   },
   "exceptions": {
     "backup_failed": {
       "message": "Le backup de {name} a échoué : le boîtier est injoignable ou n'a pas renvoyé sa configuration"
+    },
+    "restore_failed": {
+      "message": "Impossible de restaurer le backup sur {name}. Le boîtier est injoignable, ou il a refusé la restauration."
     }
   },
   "issues": {
@@ -351,6 +368,23 @@
     "firmware_outdated": {
       "title": "Firmware {version} sur {device}",
       "description": "{device} fait tourner le firmware {version}. ESPSomfy-RTS Companion est fait pour le firmware ESPSomfy-RTS v4 : ordres mis en file et envoyés en un train continu, écoute avant émission, diagnostic radio, mises à jour depuis GitHub. Installez-le depuis votre navigateur avec le lien ci-dessous, après une sauvegarde de la carte."
+    }
+  },
+  "selector": {
+    "restore_sections": {
+      "options": {
+        "shades": "Volets et groupes",
+        "settings": "Réglages généraux",
+        "network": "Réseau",
+        "transceiver": "Radio",
+        "repeaters": "Répéteurs",
+        "mqtt": "MQTT"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "command_received": "{entity_name} a reçu une commande"
     }
   }
 }

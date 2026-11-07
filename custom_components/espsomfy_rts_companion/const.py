@@ -24,6 +24,7 @@ API_SETPOSITIONS = "/setPositions"
 API_SETSENSOR = "/setSensor"
 API_BACKUP = "/backup"
 API_REBOOT = "/reboot"
+API_RESTORE = "/restore"
 EVT_SHADESTATE = "shadeState"
 EVT_GROUPSTATE = "groupState"
 EVT_GROUPREMOVED = "groupRemoved"
@@ -67,3 +68,6 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
     Platform.UPDATE,
 ]
+
+# Sections a board restore can bring back (restore_options_t on the firmware).
+RESTORE_SECTIONS = ("shades", "settings", "network", "transceiver", "repeaters", "mqtt")

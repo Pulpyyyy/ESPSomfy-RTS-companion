@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.1.0
+
+### Added
+- **Diagnostics.** The config entry can download diagnostics, with the login
+  details, the API key and the radio addresses and rolling codes taken out.
+- **Restore a backup to the board.** A `restore` action sends a stored backup
+  back to the board and brings back the chosen sections (shades by default,
+  and optionally the general settings, network, radio, repeaters or MQTT).
+  The board reboots once it is done. It fails with an error when the board is
+  unreachable or rejects the restore.
+- **Device trigger: a shade received a command.** An automation can start when
+  the board sees a command for a shade, including one sent from a physical
+  remote, and read the command, its source and the remote address.
+
 ## 4.0.1
 
 ### Fixed

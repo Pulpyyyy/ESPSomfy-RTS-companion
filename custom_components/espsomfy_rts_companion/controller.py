@@ -35,6 +35,7 @@ from .const import (
     API_GROUPCOMMAND,
     API_GROUPS,
     API_LOGIN,
+    API_RESTORE,
     API_ROOMS,
     API_SETPOSITIONS,
     API_SETSENSOR,
@@ -99,6 +100,29 @@ def _prepare_backup_dir(path: str) -> None:
 def _open_private(path: str, flags: int) -> int:
     """Open a backup file with owner-only permissions."""
     return os.open(path, flags, BACKUP_FILE_MODE)
+
+
+def _resolve_backup(backup_dir: str, name: str | None) -> bytes | None:
+    """Read a backup file to restore: the named one, or the newest.
+
+    Blocking, run in the executor. A name is checked to stay inside the backup
+    directory, so a restore cannot be pointed at another file on the host.
+    """
+    if name:
+        path = os.path.join(backup_dir, name)
+        if (
+            not name.endswith(".backup")
+            or os.path.dirname(os.path.abspath(path)) != os.path.abspath(backup_dir)
+            or not os.path.isfile(path)
+        ):
+            return None
+    else:
+        files = glob.glob(os.path.join(backup_dir, "*.backup"))
+        if not files:
+            return None
+        path = max(files, key=os.path.getmtime)
+    with open(path, "rb") as handle:
+        return handle.read()
 
 
 def _rotate_backups(backup_dir: str, keep: int) -> None:
@@ -481,6 +505,22 @@ class ESPSomfyController(DataUpdateCoordinator):
         """Create a backup of the configuration and stores it in HA."""
         return await self.api.create_backup()
 
+    async def restore_backup(
+        self, options: dict[str, bool], name: str | None = None
+    ) -> bool:
+        """Send a stored backup back to the board; it reboots on success."""
+        content = await self.hass.async_add_executor_job(
+            _resolve_backup, self.api.backup_dir, name
+        )
+        if content is None:
+            _LOGGER.error(
+                "ESPSomfy-RTS %s: no backup to restore (%s)",
+                self.device_name,
+                name or "latest",
+            )
+            return False
+        return await self.api.restore_backup(content, options)
+
     async def async_backup(self) -> bool:
         """Back the board up, then keep the configured number of copies."""
         if not await self.api.create_backup():
@@ -835,6 +875,37 @@ class ESPSomfyAPI:
             _LOGGER.error("An error occurred while creating backup: %s", e)
             return False
         return True
+
+    async def restore_backup(self, content: bytes, options: dict[str, bool]) -> bool:
+        """Upload a backup to the board and ask it to restore the given sections.
+
+        The board reboots itself when it succeeds, so there is no state to read
+        back here: a 200 is the acknowledgement.
+        """
+        url = f"{self._api_url}{API_RESTORE}"
+        form = aiohttp.FormData()
+        form.add_field(
+            "file", content, filename="restore.backup",
+            content_type="application/octet-stream",
+        )
+        try:
+            async with self._session.post(
+                url,
+                params={"data": json.dumps(options)},
+                data=form,
+                headers=self._headers,
+            ) as resp:
+                if resp.status == 200:
+                    return True
+                _LOGGER.error(
+                    "Restore request to %s failed (%s): %s",
+                    url,
+                    resp.status,
+                    await resp.text(),
+                )
+        except (aiohttp.ClientError, OSError, TimeoutError) as e:
+            _LOGGER.error("An error occurred while restoring a backup: %s", e)
+        return False
 
     def room_name(self, room_id) -> str | None:
         """Name of a firmware room, or None when unassigned or unknown."""

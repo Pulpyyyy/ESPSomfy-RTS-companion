@@ -299,11 +299,28 @@
     "backup": {
       "name": "Sicherung erstellen",
       "description": "Löst eine Sicherung der ESPSomfy-RTS-Gerätekonfiguration aus. Die Datei enthält das WLAN-Passwort im Klartext und wird nur für den Eigentümer lesbar im Konfigurationsverzeichnis von Home Assistant abgelegt"
+    },
+    "restore": {
+      "name": "Wiederherstellen",
+      "description": "Sendet eine gespeicherte Sicherung an das Gerät zurück und stellt die gewählten Bereiche wieder her. Das Gerät startet danach neu.",
+      "fields": {
+        "sections": {
+          "name": "Bereiche",
+          "description": "Welche Teile der Sicherung wiederhergestellt werden."
+        },
+        "backup": {
+          "name": "Sicherungsdatei",
+          "description": "Name der wiederherzustellenden Sicherungsdatei. Leer lassen für die neueste."
+        }
+      }
     }
   },
   "exceptions": {
     "backup_failed": {
       "message": "Sicherung von {name} fehlgeschlagen: Das Gerät ist nicht erreichbar oder hat seine Konfiguration nicht geliefert"
+    },
+    "restore_failed": {
+      "message": "Sicherung konnte nicht auf {name} zurückgespielt werden. Das Gerät ist nicht erreichbar oder hat die Wiederherstellung abgelehnt."
     }
   },
   "issues": {
@@ -351,6 +368,23 @@
     "firmware_outdated": {
       "title": "Firmware {version} auf {device}",
       "description": "{device} läuft mit Firmware {version}. ESPSomfy-RTS Companion ist für die Firmware ESPSomfy-RTS v4 gemacht: Befehle in einer Warteschlange und als ein durchgehender Zug gesendet, Hören vor dem Senden, Funkdiagnose, Updates von GitHub. Installiere sie über den Link unten im Browser, nach einer Sicherung der Platine."
+    }
+  },
+  "selector": {
+    "restore_sections": {
+      "options": {
+        "shades": "Behänge und Gruppen",
+        "settings": "Allgemeine Einstellungen",
+        "network": "Netzwerk",
+        "transceiver": "Funk",
+        "repeaters": "Repeater",
+        "mqtt": "MQTT"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "command_received": "{entity_name} hat einen Befehl empfangen"
     }
   }
 }

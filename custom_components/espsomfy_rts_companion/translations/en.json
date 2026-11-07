@@ -299,11 +299,28 @@
     "backup": {
       "name": "Backup",
       "description": "Triggers a backup of the ESPSomfy-RTS device configuration. The file holds the WiFi passphrase in clear text, it is stored owner-only in the Home Assistant configuration directory"
+    },
+    "restore": {
+      "name": "Restore",
+      "description": "Send a stored backup back to the device and restore the chosen sections. The device reboots once it is done.",
+      "fields": {
+        "sections": {
+          "name": "Sections",
+          "description": "Which parts of the backup to restore."
+        },
+        "backup": {
+          "name": "Backup file",
+          "description": "Name of the backup file to restore. Leave empty to use the most recent one."
+        }
+      }
     }
   },
   "exceptions": {
     "backup_failed": {
       "message": "Backup of {name} failed: the device is unreachable or did not return its configuration"
+    },
+    "restore_failed": {
+      "message": "Could not restore the backup to {name}. The device is unreachable, or it rejected the restore."
     }
   },
   "issues": {
@@ -351,6 +368,23 @@
     "firmware_outdated": {
       "title": "Firmware {version} on {device}",
       "description": "{device} runs firmware {version}. ESPSomfy-RTS Companion is made for the ESPSomfy-RTS v4 firmware: queued orders sent as one continuous train, listen before transmit, radio diagnostics, updates from GitHub. Install it from your browser with the link below, after a backup of the board."
+    }
+  },
+  "selector": {
+    "restore_sections": {
+      "options": {
+        "shades": "Shades and groups",
+        "settings": "General settings",
+        "network": "Network",
+        "transceiver": "Radio",
+        "repeaters": "Repeaters",
+        "mqtt": "MQTT"
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "command_received": "{entity_name} received a command"
     }
   }
 }

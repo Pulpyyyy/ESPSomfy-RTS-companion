@@ -238,3 +238,38 @@ backup:
     entity:
       integration: espsomfy_rts_companion
       domain: button
+
+restore:
+  name: Restore
+  description: >-
+    Send a stored backup back to the ESPSomfy Device and restore the chosen
+    sections. The device reboots once it is done. By default only the shades
+    are restored.
+  target:
+    entity:
+      integration: espsomfy_rts_companion
+      domain: button
+  fields:
+    sections:
+      name: Sections
+      description: Which parts of the backup to restore.
+      default: [shades]
+      selector:
+        select:
+          multiple: true
+          translation_key: restore_sections
+          options:
+            - shades
+            - settings
+            - network
+            - transceiver
+            - repeaters
+            - mqtt
+    backup:
+      name: Backup file
+      description: >-
+        Name of the backup file to restore (for example
+        2026-11-07T20_00_00.backup). Leave empty to use the most recent one.
+      example: "2026-11-07T20_00_00.backup"
+      selector:
+        text:
