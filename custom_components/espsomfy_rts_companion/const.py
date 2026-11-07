@@ -42,6 +42,11 @@ EVT_MEMSTATUS = "memStatus"
 # firmware (the websocket filter would drop them anyway).
 EVT_HTTPPROBE = "httpProbe"
 EVT_BACKUPDONE = "backupDone"
+# Published by the integration itself after reading the radio statistics.
+EVT_RADIOHEALTH = "radioHealth"
+
+# Browser installer of the firmware.
+FLASHER_URL = "https://pulpyyyy.github.io/ESPSomfy-RTS/"
 
 CONF_MAX_BACKUPS = "max_backups"
 # Rooms <-> areas and groups -> labels (see organization.py).

@@ -19,6 +19,15 @@
   shades. Labels only go from the board to Home Assistant: joining a group
   takes a pairing on the motor.
 - **Synchronise rooms and groups** option, on by default.
+- **Radio health.** The radio statistics of the board (`/rfStats`) are read
+  at startup and every five minutes. A shade with fewer repeats than its
+  measured margin calls for (never fewer than 2) gets a repair that sets the
+  advised value on the board. A guided measurement under 8 dB above the
+  noise raises a warning: more repeats rarely save such a link.
+- **Radio noise**, **Lost radio orders** and per shade **Radio margin**
+  diagnostic sensors, on boards that publish radio statistics.
+- **Repair for firmware 2.x and 3.x**, with a link to the browser installer
+  of the ESPSomfy-RTS v4 firmware.
 - The board, each shade and each group link to the matching page of the
   board's web interface.
 

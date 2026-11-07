@@ -149,6 +149,15 @@
       },
       "last_backup": {
         "name": "Letzte Sicherung"
+      },
+      "radio_noise": {
+        "name": "Funkrauschen"
+      },
+      "radio_dropped": {
+        "name": "Verlorene Funkbefehle"
+      },
+      "radio_margin": {
+        "name": "Funkreserve"
       }
     },
     "switch": {
@@ -309,6 +318,29 @@
           "not_loaded": "Die Platine ist nicht geladen, versuche es erneut, sobald sie verbunden ist."
         }
       }
+    },
+    "repeats_low": {
+      "title": "Zu wenige Wiederholungen für {shade}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Befehle für {shade} öfter wiederholen?",
+            "description": "{device} sendet jeden Befehl für **{shade}** mit {current} Wiederholung(en); nach den Messungen der Platine werden {recommended} empfohlen. Mit zu wenigen Wiederholungen ist ein verlorener Frame ein ignorierter Befehl, und der Rollladen reagiert nur \"manchmal\". Bestätige, um {recommended} Wiederholungen auf der Platine einzustellen."
+          }
+        },
+        "abort": {
+          "not_loaded": "Die Platine ist nicht geladen, versuche es erneut, sobald sie verbunden ist.",
+          "cannot_connect": "Die Platine hat die Änderung nicht angenommen, versuche es erneut, sobald sie erreichbar ist."
+        }
+      }
+    },
+    "weak_link": {
+      "title": "Schwache Funkverbindung zu {shade}",
+      "description": "Die geführte Messung von **{shade}** liegt nur {margin} dB über dem Rauschen von {device}. Mehr Wiederholungen retten eine solche Verbindung selten: Verschiebe die Platine oder ihre Antenne oder ergänze einen Repeater und miss danach erneut auf der Seite RF-Diagnose der Platine."
+    },
+    "firmware_outdated": {
+      "title": "Firmware {version} auf {device}",
+      "description": "{device} läuft mit Firmware {version}. ESPSomfy-RTS Companion ist für die Firmware ESPSomfy-RTS v4 gemacht: Befehle in einer Warteschlange und als ein durchgehender Zug gesendet, Hören vor dem Senden, Funkdiagnose, Updates von GitHub. Installiere sie über den Link unten im Browser, nach einer Sicherung der Platine."
     }
   }
 }

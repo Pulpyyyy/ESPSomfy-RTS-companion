@@ -62,6 +62,7 @@ ESPSomfy-RTS Companion is the new name of the integration published here as *ESP
 * **Firmware updates**: an `update` entity shows when a new ESPSomfy-RTS release is out and installs it from Home Assistant.
 * **Automations**: shades are standard `cover` entities, and the integration adds actions for steps, raw RTS commands, position correction without moving, sun and wind flags, restart and backup (see [Services](docs/Services.md)).
 * **Device health**: a *Connectivity* diagnostic sensor per board is `on` while the websocket is connected and the HTTP API answers (checked every minute).
+* **Radio health**: from the measurements of the board, the integration works out how many repeats each shade needs, the same way as the RF diagnostics page of the board. A shade that repeats too little gets a repair that sets the advised value in one click; a weak link measured with the guided session gets a warning with what to do. *Radio noise*, *Lost radio orders* and a *Radio margin* per shade are diagnostic sensors. A board still on firmware 2.x or 3.x gets a repair pointing at the browser installer.
 * **Backups**: the *Backup* button (or the `espsomfy_rts_companion.backup` action) stores the board configuration on the Home Assistant host. A failed backup raises an error visible in automation traces, the *Last backup* sensor shows when the newest one was taken, and the number of backups kept (5 by default, 1 to 50) is set in the integration options.
 
 ## Events

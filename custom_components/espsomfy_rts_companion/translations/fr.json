@@ -149,6 +149,15 @@
       },
       "last_backup": {
         "name": "Dernier backup"
+      },
+      "radio_noise": {
+        "name": "Bruit radio"
+      },
+      "radio_dropped": {
+        "name": "Ordres radio perdus"
+      },
+      "radio_margin": {
+        "name": "Marge radio"
       }
     },
     "switch": {
@@ -309,6 +318,29 @@
           "not_loaded": "La carte n'est pas chargée, réessayez une fois qu'elle est connectée."
         }
       }
+    },
+    "repeats_low": {
+      "title": "Pas assez de répétitions pour {shade}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Répéter davantage les ordres de {shade} ?",
+            "description": "{device} envoie chaque ordre de **{shade}** avec {current} répétition(s) ; {recommended} sont conseillées d'après les mesures de la carte. Avec trop peu de répétitions, une trame perdue est un ordre ignoré, et le volet ne répond « que parfois ». Validez pour régler {recommended} répétitions sur la carte."
+          }
+        },
+        "abort": {
+          "not_loaded": "La carte n'est pas chargée, réessayez une fois qu'elle est connectée.",
+          "cannot_connect": "La carte n'a pas accepté le changement, réessayez quand elle est joignable."
+        }
+      }
+    },
+    "weak_link": {
+      "title": "Liaison radio faible vers {shade}",
+      "description": "La mesure guidée de **{shade}** n'est qu'à {margin} dB au-dessus du bruit de {device}. Ajouter des répétitions sauve rarement une telle liaison : déplacez la carte ou son antenne, ou ajoutez un répéteur, puis mesurez à nouveau depuis la page Diagnostic RF de la carte."
+    },
+    "firmware_outdated": {
+      "title": "Firmware {version} sur {device}",
+      "description": "{device} fait tourner le firmware {version}. ESPSomfy-RTS Companion est fait pour le firmware ESPSomfy-RTS v4 : ordres mis en file et envoyés en un train continu, écoute avant émission, diagnostic radio, mises à jour depuis GitHub. Installez-le depuis votre navigateur avec le lien ci-dessous, après une sauvegarde de la carte."
     }
   }
 }

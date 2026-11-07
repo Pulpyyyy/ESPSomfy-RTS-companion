@@ -149,6 +149,15 @@
       },
       "last_backup": {
         "name": "Última copia de seguridad"
+      },
+      "radio_noise": {
+        "name": "Ruido de radio"
+      },
+      "radio_dropped": {
+        "name": "Órdenes de radio perdidas"
+      },
+      "radio_margin": {
+        "name": "Margen de radio"
       }
     },
     "switch": {
@@ -309,6 +318,29 @@
           "not_loaded": "La placa no está cargada, inténtalo de nuevo cuando esté conectada."
         }
       }
+    },
+    "repeats_low": {
+      "title": "Pocas repeticiones para {shade}",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "¿Repetir más las órdenes de {shade}?",
+            "description": "{device} envía cada orden de **{shade}** con {current} repetición(es); se aconsejan {recommended} según las mediciones de la placa. Con pocas repeticiones, una trama perdida es una orden ignorada y la persiana solo responde «a veces». Confirma para poner {recommended} repeticiones en la placa."
+          }
+        },
+        "abort": {
+          "not_loaded": "La placa no está cargada, inténtalo de nuevo cuando esté conectada.",
+          "cannot_connect": "La placa no aceptó el cambio, inténtalo de nuevo cuando esté accesible."
+        }
+      }
+    },
+    "weak_link": {
+      "title": "Enlace de radio débil con {shade}",
+      "description": "La medición guiada de **{shade}** está solo {margin} dB por encima del ruido de {device}. Más repeticiones rara vez salvan un enlace así: mueve la placa o su antena, o añade un repetidor, y vuelve a medir desde la página Diagnóstico RF de la placa."
+    },
+    "firmware_outdated": {
+      "title": "Firmware {version} en {device}",
+      "description": "{device} ejecuta el firmware {version}. ESPSomfy-RTS Companion está hecho para el firmware ESPSomfy-RTS v4: órdenes en cola enviadas en un tren continuo, escucha antes de emitir, diagnóstico de radio, actualizaciones desde GitHub. Instálalo desde tu navegador con el enlace de abajo, tras una copia de seguridad de la placa."
     }
   }
 }

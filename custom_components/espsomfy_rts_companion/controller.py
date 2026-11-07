@@ -61,6 +61,7 @@ from .const import (
 )
 
 if TYPE_CHECKING:
+    from .health import BoardHealth
     from .organization import OrganizationSync
 
 _LOGGER = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ WS_RECONNECT_MAX_DELAY = 20
 # The websocket alone can look healthy while the HTTP API, which every command
 # and the backup go through, no longer answers. A light GET checks it.
 PROBE_INTERVAL = 60
-# The board side of rooms and groups is read again every this many probes.
+# Rooms, groups and radio statistics are read again every this many probes.
 ORGANIZATION_REFRESH_PROBES = 5
 PROBE_TIMEOUT = 5
 
@@ -252,6 +253,8 @@ class ESPSomfyController(DataUpdateCoordinator):
         self._probes = 0
         # Rooms and groups synchronisation, set by async_setup_entry when enabled.
         self.organization: OrganizationSync | None = None
+        # Radio health checks, set by async_setup_entry.
+        self.health: BoardHealth | None = None
         # Newest local backup, refreshed from disk at setup and after a backup.
         self.last_backup: datetime | None = None
         self.backup_count = 0
@@ -384,8 +387,12 @@ class ESPSomfyController(DataUpdateCoordinator):
             await self.async_probe()
             # Room renames and moves are not reported on the websocket.
             self._probes += 1
-            if self.organization is not None and self._probes % ORGANIZATION_REFRESH_PROBES == 0:
-                await self.organization.async_try_refresh()
+            if self._probes % ORGANIZATION_REFRESH_PROBES == 0:
+                if self.organization is not None:
+                    await self.organization.async_try_refresh()
+                if self.health is not None:
+                    # The synchronisation has just read the shades again.
+                    await self.health.async_try_refresh(reload=self.organization is None)
 
     async def async_probe(self) -> bool:
         """Probe the HTTP API once and publish the result."""
@@ -878,6 +885,31 @@ class ESPSomfyAPI:
         except (aiohttp.ClientError, OSError, TimeoutError) as ex:
             _LOGGER.warning("ESPSomfy-RTS %s: %s failed: %s", self._deviceName, path, ex)
         return None
+
+    async def load_rf_stats(self) -> dict[str, Any] | None:
+        """Read the radio statistics of the board, None when it has none."""
+        try:
+            async with self._session.get(
+                f"{self._config_url}/rfStats",
+                headers=self._headers,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 200:
+                    stats = await resp.json(content_type=None)
+                    return stats if isinstance(stats, dict) else None
+                _LOGGER.debug("ESPSomfy-RTS %s: no radio statistics (%s)", self._deviceName, resp.status)
+        except (aiohttp.ClientError, OSError, TimeoutError, ValueError) as ex:
+            _LOGGER.debug("ESPSomfy-RTS %s: radio statistics not read: %s", self._deviceName, ex)
+        return None
+
+    async def save_shade_repeats(self, shade_id: int, repeats: int) -> Any | None:
+        """Set how many times the board repeats the orders of a shade."""
+        shade = await self._put_config("/saveShade", {"shadeId": shade_id, "repeats": repeats})
+        if shade is not None:
+            for known in self._config.get("shades", []):
+                if known.get("shadeId") == shade_id:
+                    known["repeats"] = repeats
+        return shade
 
     async def save_shade_room(self, shade_id: int, room_id: int) -> Any | None:
         """Move a shade to a room of the board."""

@@ -19,6 +19,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 
 from .const import CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION, PLATFORMS
 from .controller import ESPSomfyAPI, ESPSomfyController, LoginError
+from .health import BoardHealth
 from .organization import OrganizationSync
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +78,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) -> 
     # Newest local backup for the "Last backup" sensor, read before the
     # platforms so the entity starts with its value.
     await controller.async_update_backup_info()
+    # Radio health, read before the platforms so the sensor platform knows
+    # whether the board publishes radio statistics.
+    controller.health = BoardHealth(hass, controller)
+    await controller.health.async_try_refresh(reload=False)
 
     # 4. Les plateformes ne sont chargées qu'une fois le login réussi, sinon un
     #    échec après forward provoquait un double chargement au retry.
@@ -137,6 +142,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) ->
     controller: ESPSomfyController | None = getattr(entry, "runtime_data", None)
     if controller is not None:
         controller.organization = None
+        controller.health = None
         await controller.async_stop_probe()
         await controller.ws_close()
         return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
