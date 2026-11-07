@@ -44,14 +44,16 @@ Copy `custom_components/espsomfy_rts_companion/` into the `config/custom_compone
 
 Home Assistant finds the board on its own (UPnP or mDNS): it shows up in **Settings › Devices & services**, ready to be added. Enter the PIN code or password if the board has one. If Home Assistant sits on another network segment, add the integration by hand with the address of the board.
 
-## Coming from ESPSomfy-RTS Enhanced
+## Coming from an earlier ESPSomfy-RTS integration
 
-ESPSomfy-RTS Companion is the new name of the integration published here as *ESPSomfy-RTS Enhanced* up to v3.5.0. The Home Assistant domain changed, so Home Assistant sees it as a new integration:
+ESPSomfy-RTS Companion carries on the earlier ESPSomfy-RTS integrations for Home Assistant, under a new domain. It takes your board over as it is: every entity keeps its entity id, every device keeps its area and its name, and history carries on.
 
-1. Note the automations, scripts and dashboards that use your shades.
-2. Remove the *ESPSomfy-RTS Enhanced* integration in **Settings › Devices & services**, then remove it from HACS or the Marketplace.
-3. Install **ESPSomfy-RTS Companion** as above and add your board.
-4. Check your entity ids (rename them back if needed) and replace the `espsomfy_rts_enhanced.*` actions with `espsomfy_rts_companion.*`. The `espsomfy-rts_event` events keep their name.
+1. Remove the earlier integration from HACS, or delete its folder from `config/custom_components/`. **Leave it in Settings › Devices & services**: Companion takes over from there.
+2. Install ESPSomfy-RTS Companion as above and restart Home Assistant.
+3. Add the board when Home Assistant offers it, or by hand with its address. The PIN code or password of the earlier setup is reused, and so are its options.
+4. In your automations and scripts, replace the actions of the earlier integration (`espsomfy_rts.*` or `espsomfy_rts_enhanced.*`) with `espsomfy_rts_companion.*`. Entity ids and the `espsomfy-rts_event` events do not change.
+
+If the earlier integration was already removed from Devices & services, there is nothing left to take over: the entities get new ids, which you can rename back in their settings.
 
 ## Features
 

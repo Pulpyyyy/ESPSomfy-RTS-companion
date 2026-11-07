@@ -17,6 +17,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
+from .adopt import async_adopt_previous
 from .const import CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION, DOMAIN, PLATFORMS
 from .controller import ESPSomfyAPI, ESPSomfyController, LoginError
 from .health import BoardHealth
@@ -64,6 +65,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) -> 
         ) from ex
 
     hass.config_entries.async_update_entry(entry, title=api.deviceName)
+
+    # The same board set up under an earlier ESPSomfy-RTS integration: its
+    # entities and devices move here with their entity ids, areas and history.
+    # Before the platforms, so nothing gets created twice.
+    await async_adopt_previous(hass, entry, controller.unique_id)
 
     # Migration des unique_id historiques (typo "ip_addresss" corrigé en v3.0.2),
     # à faire avant le chargement des plateformes pour ne pas orpheliner l'entité.

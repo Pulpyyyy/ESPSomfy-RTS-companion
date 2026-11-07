@@ -33,6 +33,7 @@ from .const import (
 
 # Settings kept in the entry options; everything else goes to the entry data.
 OPTION_KEYS = (CONF_MAX_BACKUPS, CONF_SYNC_ORGANIZATION)
+from .adopt import previous_entry
 from .controller import (
     DiscoveryError,
     ESPSomfyAPI,
@@ -73,6 +74,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    def _carry_over(self, data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Data and options of the new entry, completed from an earlier integration.
+
+        The same board set up under an earlier ESPSomfy-RTS integration keeps its
+        PIN or password and its options; what was entered here wins. Its entities
+        and devices are taken over when the entry is set up (adopt.py).
+        """
+        previous = previous_entry(self.hass, self.unique_id)
+        if previous is None:
+            return dict(data), {}
+        credentials = {
+            k: previous.data[k] for k in (CONF_USERNAME, CONF_PASSWORD, CONF_PIN) if previous.data.get(k)
+        }
+        options = {k: previous.options[k] for k in OPTION_KEYS if k in previous.options}
+        return {**credentials, **{k: v for k, v in data.items() if v}}, options
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -88,17 +105,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await api.discover()
                 await self.async_set_unique_id(f"espsomfy_{api.server_id}")
                 self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
+                data, options = self._carry_over(user_input)
                 await api.login(
                     {
-                        "username": user_input.get(CONF_USERNAME, ""),
-                        "password": user_input.get(CONF_PASSWORD, ""),
-                        "pin": user_input.get(CONF_PIN, ""),
+                        "username": data.get(CONF_USERNAME, ""),
+                        "password": data.get(CONF_PASSWORD, ""),
+                        "pin": data.get(CONF_PIN, ""),
                     }
                 )
                 return self.async_create_entry(
                     title=api.deviceName,
                     description=f"ESPSomfy-RTS {api.server_id}",
-                    data=user_input,
+                    data=data,
+                    options=options,
                 )
             except InvalidHost:
                 errors[CONF_HOST] = "invalid_host"
@@ -149,11 +168,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle a flow initiated by zeroconf."""
         if user_input is not None:
+            data, options = self._carry_over({CONF_HOST: self.zero_conf.host})
             return self.async_create_entry(
-                title=self.zero_conf.hostname,
-                data={
-                    CONF_HOST: self.zero_conf.host,
-                },
+                title=self.zero_conf.hostname, data=data, options=options
             )
 
         return self.async_show_form(

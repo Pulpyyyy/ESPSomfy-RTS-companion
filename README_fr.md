@@ -44,14 +44,16 @@ Copiez `custom_components/espsomfy_rts_companion/` dans le dossier `config/custo
 
 Home Assistant trouve la carte tout seul (UPnP ou mDNS) : elle apparaît dans **Paramètres › Appareils et services**, prête à être ajoutée. Saisissez le code PIN ou le mot de passe si la carte en a un. Si Home Assistant est sur un autre segment de réseau, ajoutez l'intégration à la main avec l'adresse de la carte.
 
-## Vous venez d'ESPSomfy-RTS Enhanced
+## Vous venez d'une intégration ESPSomfy-RTS précédente
 
-ESPSomfy-RTS Companion est le nouveau nom de l'intégration publiée ici sous le nom *ESPSomfy-RTS Enhanced* jusqu'à la v3.5.0. Le domaine Home Assistant a changé : Home Assistant la voit donc comme une nouvelle intégration.
+ESPSomfy-RTS Companion prend la suite des intégrations ESPSomfy-RTS précédentes pour Home Assistant, sous un nouveau domaine. Elle reprend votre carte telle qu'elle est : chaque entité garde son identifiant, chaque appareil garde sa pièce et son nom, et l'historique continue.
 
-1. Notez les automatisations, scripts et tableaux de bord qui utilisent vos volets.
-2. Supprimez l'intégration *ESPSomfy-RTS Enhanced* dans **Paramètres › Appareils et services**, puis retirez-la de HACS ou du Marketplace.
-3. Installez **ESPSomfy-RTS Companion** comme ci-dessus et ajoutez votre carte.
-4. Vérifiez les identifiants de vos entités (renommez-les si besoin) et remplacez les actions `espsomfy_rts_enhanced.*` par `espsomfy_rts_companion.*`. Les événements `espsomfy-rts_event` gardent leur nom.
+1. Retirez l'intégration précédente de HACS, ou supprimez son dossier de `config/custom_components/`. **Laissez-la dans Paramètres › Appareils et services** : Companion prend le relais à partir de là.
+2. Installez ESPSomfy-RTS Companion comme ci-dessus et redémarrez Home Assistant.
+3. Ajoutez la carte quand Home Assistant la propose, ou à la main avec son adresse. Le code PIN ou le mot de passe de l'installation précédente est repris, ses options aussi.
+4. Dans vos automatisations et scripts, remplacez les actions de l'intégration précédente (`espsomfy_rts.*` ou `espsomfy_rts_enhanced.*`) par `espsomfy_rts_companion.*`. Les identifiants d'entités et les événements `espsomfy-rts_event` ne changent pas.
+
+Si l'intégration précédente a déjà été supprimée des Appareils et services, il n'y a plus rien à reprendre : les entités reçoivent de nouveaux identifiants, que vous pouvez renommer dans leurs paramètres.
 
 ## Fonctionnalités
 

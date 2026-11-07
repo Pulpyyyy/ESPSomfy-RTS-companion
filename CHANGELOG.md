@@ -3,6 +3,11 @@
 ## 4.0.0
 
 ### Added
+- **Takes over an earlier ESPSomfy-RTS integration.** A board still set up
+  under an earlier ESPSomfy-RTS integration (`espsomfy_rts` or
+  `espsomfy_rts_enhanced`) is taken over when it is added: every entity keeps
+  its entity id, every device its area and name, history carries on, and the
+  PIN code or password and the options are reused.
 - **Rooms and areas, both ways.** Each room of the board is linked to a Home
   Assistant area (created when missing), and each shade device sits in the
   area of its room. Moving a shade to another area, or renaming a linked area,
@@ -43,11 +48,10 @@
 ### Changed
 - **New name: ESPSomfy-RTS Companion**, the Home Assistant integration of the
   ESPSomfy-RTS v4 firmware. The domain is now `espsomfy_rts_companion` and the
-  repository is `Pulpyyyy/ESPSomfy-RTS-companion`. Home Assistant sees it as a
-  new integration: remove *ESPSomfy-RTS Enhanced*, install the Companion and
-  add the board again (see *Coming from ESPSomfy-RTS Enhanced* in the README).
-  Actions move from `espsomfy_rts_enhanced.*` to `espsomfy_rts_companion.*`;
-  the `espsomfy-rts_event` events keep their name.
+  repository is `Pulpyyyy/ESPSomfy-RTS-companion`. Actions move to
+  `espsomfy_rts_companion.*`; entity ids and the `espsomfy-rts_event` events
+  do not change (see *Coming from an earlier ESPSomfy-RTS integration* in the
+  README).
 - New icon, banner and README.
 
 ## 3.5.0
