@@ -110,6 +110,8 @@ actions:
         (depuis {{ trigger.event.data.source }})
 ```
 
+Un filtre facultatif **source** (télécommande physique, groupe ou carte) ou **adresse de télécommande** restreint le déclencheur.
+
 ## Tous les volets d'un coup
 
 Pour démarrer sur une commande de n'importe quel volet, présent ou futur, utilisez le déclencheur **Un volet a reçu une commande** de l'intégration (Nouvelle automatisation > Ajouter un déclencheur > ESPSomfy-RTS Companion). Laissez la cible vide pour tous les volets, ou choisissez des volets, des pièces ou des étiquettes, avec un filtre de source facultatif.

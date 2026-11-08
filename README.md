@@ -110,6 +110,8 @@ actions:
         (from {{ trigger.event.data.source }})
 ```
 
+An optional **source** (a physical remote, a group or the board) or **remote address** filter narrows the trigger.
+
 ## All shades at once
 
 To start on a command from any shade, present or future, use the **A shade received a command** trigger of the integration (New automation > Add trigger > ESPSomfy-RTS Companion). Leave the target empty for every shade, or pick shades, areas or labels, and optionally filter by source.
