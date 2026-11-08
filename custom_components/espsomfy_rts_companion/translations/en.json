@@ -177,6 +177,11 @@
       "dry_contact_switch": {
         "name": "Dry contact"
       }
+    },
+    "event": {
+      "remote": {
+        "name": "Remote {slot}"
+      }
     }
   },
   "services": {
