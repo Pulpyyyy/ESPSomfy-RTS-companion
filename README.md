@@ -8,7 +8,7 @@
   <img src="https://my.home-assistant.io/badges/marketplace_repository.svg" alt="Open this repository in the Marketplace of your Home Assistant">
 </a>
 
-**[Version française](README_fr.md)** · [Services](docs/Services.md) · [Report an issue](https://github.com/Pulpyyyy/ESPSomfy-RTS-companion/issues)
+**[Version française](README_fr.md)** · [Services](docs/Services.md) · [Automations](docs/Automations.md) · [Report an issue](https://github.com/Pulpyyyy/ESPSomfy-RTS-companion/issues)
 
 </div>
 
@@ -126,6 +126,8 @@ actions:
     data:
       message: "{{ trigger.event.data.remote_name }} on {{ trigger.event.data.name }}"
 ```
+
+More recipes: [Automations](docs/Automations.md).
 
 ## Credits
 
