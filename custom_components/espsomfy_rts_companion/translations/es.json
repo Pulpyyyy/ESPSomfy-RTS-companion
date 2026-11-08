@@ -177,6 +177,11 @@
       "dry_contact_switch": {
         "name": "Contacto seco"
       }
+    },
+    "event": {
+      "remote": {
+        "name": "Mando {slot}"
+      }
     }
   },
   "services": {

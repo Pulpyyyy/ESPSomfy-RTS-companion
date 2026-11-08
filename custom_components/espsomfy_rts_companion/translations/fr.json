@@ -177,6 +177,11 @@
       "dry_contact_switch": {
         "name": "Contact sec"
       }
+    },
+    "event": {
+      "remote": {
+        "name": "Télécommande {slot}"
+      }
     }
   },
   "services": {

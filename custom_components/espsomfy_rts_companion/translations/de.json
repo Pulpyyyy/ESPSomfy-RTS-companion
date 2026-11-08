@@ -177,6 +177,11 @@
       "dry_contact_switch": {
         "name": "Potenzialfreier Kontakt"
       }
+    },
+    "event": {
+      "remote": {
+        "name": "Fernbedienung {slot}"
+      }
     }
   },
   "services": {

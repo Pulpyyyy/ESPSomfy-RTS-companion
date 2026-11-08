@@ -70,6 +70,7 @@ If the earlier integration was already removed from Devices & services, there is
 * **Restore**: the `espsomfy_rts_companion.restore` action sends a stored backup back to the board and brings back the sections you pick (shades by default). The board reboots when it is done.
 * **Automations from your remotes**: a device trigger starts an automation when the board sees a command for a shade, including one pressed on a physical remote.
 * **Diagnostics**: download the config entry diagnostics for a bug report, with the secrets removed.
+* **Remotes as entities**: each remote linked to a shade is an `event` entity (`Remote #1`, `#2`, ...), so you can start an automation from a remote press, rename it and see its history. It fires once per press.
 
 ## Events
 
