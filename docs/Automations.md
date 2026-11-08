@@ -29,22 +29,26 @@ The event also carries `remote_type` (`remote`, `group` or `internal`),
 
 ## A specific remote button runs a scene
 
-Filter the integration trigger by `remote_address`, then check the command. Use
-this to turn a spare remote button into a scene or script trigger.
+Every remote linked to a shade is an `event` entity on that shade's device,
+named by its slot (`Remote #1`, `#2`, ...); rename it to taste. Pick it in the
+automation and check the command. The entity fires once per press, so the
+action runs once even when the remote drives several shades.
 
 ```yaml
 triggers:
-  - trigger: espsomfy_rts_companion.command_received
-    options:
-      source: remote
-      remote_address: 123456
+  - trigger: state
+    entity_id: event.baie_remote_1
 conditions:
-  - "{{ trigger.event.data.command == 'My' }}"
+  - "{{ trigger.to_state.attributes.event_type == 'my' }}"
 actions:
   - action: scene.turn_on
     target:
       entity_id: scene.evening
 ```
+
+A remote also moves its shade: a "My" button sends the shade to its My position
+as well as firing this event. Use a button that does not drive a shade you mind
+moving, or accept the shade movement.
 
 ## Only one shade, from the visual editor
 

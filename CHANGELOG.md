@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.3.0
+
+### Added
+- **A remote is now an entity.** Each remote linked to a shade becomes an
+  `event` entity on that shade's device, named by its slot (`Remote #1`,
+  `#2`, ...), so you can select it in an automation, rename it and keep its
+  history. A shade with several remotes shows several of them; a remote
+  shared by several shades stays one entity, the others in its
+  `linked_shades` attribute. It fires once per press (the command fans out
+  to every shade the remote drives, but the entity collapses that), with the
+  command as the event type.
+
 ## 4.2.1
 
 ### Fixed
