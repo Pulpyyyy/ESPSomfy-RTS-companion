@@ -439,8 +439,10 @@ class ESPSomfyController(DataUpdateCoordinator):
     def _remove_device(self, identifier: str) -> None:
         """Drop a device deleted on the board, with its entities."""
         devices = dr.async_get(self.hass)
-        device = devices.async_get_device(identifiers={(DOMAIN, identifier)})
-        if device is not None and self.config_entry_id in device.config_entries:
+        device = devices.async_get_device_by_identifier(
+            (DOMAIN, identifier), self.config_entry_id
+        )
+        if device is not None:
             devices.async_update_device(device.id, remove_config_entry_id=self.config_entry_id)
 
     @callback

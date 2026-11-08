@@ -104,8 +104,8 @@ def _body(call) -> dict:
 
 
 def _shade_device(hass: HomeAssistant, shade_id: int) -> dr.DeviceEntry:
-    device = dr.async_get(hass).async_get_device(
-        identifiers={(DOMAIN, f"shade_{UID}_{shade_id}")}
+    device = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, f"shade_{UID}_{shade_id}"), hass.config_entries.async_entries(DOMAIN)[0].entry_id
     )
     assert device is not None
     return device

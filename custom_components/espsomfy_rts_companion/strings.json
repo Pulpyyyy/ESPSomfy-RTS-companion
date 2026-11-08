@@ -380,11 +380,34 @@
         "repeaters": "Repeaters",
         "mqtt": "MQTT"
       }
+    },
+    "command_source": {
+      "options": {
+        "remote": "A physical remote",
+        "group": "A group",
+        "internal": "Home Assistant or the board"
+      }
     }
   },
   "device_automation": {
     "trigger_type": {
       "command_received": "{entity_name} received a command"
+    },
+    "extra_fields": {
+      "source": "Source",
+      "remote_address": "Remote address"
+    }
+  },
+  "triggers": {
+    "command_received": {
+      "name": "A shade received a command",
+      "description": "Starts when the board sees a command for a shade, from Home Assistant or a physical remote.",
+      "fields": {
+        "source": {
+          "name": "Source",
+          "description": "Only start for commands from this source."
+        }
+      }
     }
   }
 }

@@ -380,11 +380,34 @@
         "repeaters": "Répéteurs",
         "mqtt": "MQTT"
       }
+    },
+    "command_source": {
+      "options": {
+        "remote": "Une télécommande physique",
+        "group": "Un groupe",
+        "internal": "Home Assistant ou la carte"
+      }
     }
   },
   "device_automation": {
     "trigger_type": {
       "command_received": "{entity_name} a reçu une commande"
+    },
+    "extra_fields": {
+      "source": "Source",
+      "remote_address": "Adresse de la télécommande"
+    }
+  },
+  "triggers": {
+    "command_received": {
+      "name": "Un volet a reçu une commande",
+      "description": "Démarre quand la carte voit une commande pour un volet, depuis Home Assistant ou une télécommande physique.",
+      "fields": {
+        "source": {
+          "name": "Source",
+          "description": "Ne démarrer que pour les commandes venant de cette source."
+        }
+      }
     }
   }
 }

@@ -1,0 +1,14 @@
+command_received:
+  target:
+    entity:
+      integration: espsomfy_rts_companion
+      domain: cover
+  fields:
+    source:
+      selector:
+        select:
+          translation_key: command_source
+          options:
+            - remote
+            - group
+            - internal

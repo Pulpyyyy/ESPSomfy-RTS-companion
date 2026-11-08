@@ -199,7 +199,7 @@ class OrganizationSync:
         for shade in self.api.shades:
             shade_id = str(shade.get("shadeId"))
             room_id = int(shade.get("roomId") or 0)
-            device = devices.async_get_device(identifiers={self._shade_identifier(shade_id)})
+            device = devices.async_get_device_by_identifier(self._shade_identifier(shade_id), self.controller.config_entry.entry_id)
             if device is None:
                 continue
             target = self._room_area.get(str(room_id)) if room_id else None
@@ -254,7 +254,7 @@ class OrganizationSync:
                 if keep == RESOLVE_HOME_ASSISTANT:
                     await self._push_shade_area(shade_id, area_id)
                     continue
-                device = devices.async_get_device(identifiers={self._shade_identifier(shade_id)})
+                device = devices.async_get_device_by_identifier(self._shade_identifier(shade_id), self.controller.config_entry.entry_id)
                 if device is not None:
                     self._echo_devices.add(device.id)
                     try:

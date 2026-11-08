@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.2.0
+
+### Added
+- **Richer command events.** Every `espsomfy-rts_event` now also carries
+  `remote_type` (`remote`, `group` or `internal`), `remote_slot`,
+  `remote_linked`, a readable `remote_name` (`Remote <shade> #<slot>` for a
+  dedicated remote, the group name for a group), `device_id` and `area`.
+- **Integration trigger: a shade received a command.** Starts an automation
+  from any shade, present or future, with an optional target (shades, areas
+  or labels) and an optional source filter. No entity to name.
+- **Source and remote filters on the device trigger**, to narrow it to a
+  source or one remote address.
+
+### Changed
+- **Home Assistant 2026.10 or later is now required**, for the integration
+  command trigger, which uses the trigger API added in that release.
+
 ## 4.1.0
 
 ### Added

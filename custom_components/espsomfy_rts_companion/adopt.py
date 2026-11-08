@@ -95,7 +95,14 @@ async def _async_adopt_entry(hass: HomeAssistant, entry: ConfigEntry, old: Confi
             (DOMAIN, ident) if domain == old.domain else (domain, ident)
             for domain, ident in device.identifiers
         }
-        duplicate = devices.async_get_device(identifiers=identifiers)
+        duplicate = next(
+            (
+                found
+                for ident in identifiers
+                if (found := devices.async_get_device_by_identifier(ident, entry.entry_id))
+            ),
+            None,
+        )
         if duplicate is not None and duplicate.id != device.id:
             # Removing a device removes its entities: hand them over first.
             for reg_entry in er.async_entries_for_device(

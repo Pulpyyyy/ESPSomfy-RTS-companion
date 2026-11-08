@@ -3,7 +3,9 @@
 A shade fires `espsomfy-rts_event` whenever the board sees a command for it,
 including the ones sent from a physical remote. This exposes that as a device
 trigger, so an automation can start on "this shade received a command" and
-read the command, its source and the remote address from the trigger data.
+read the command, its type, slot, source and the remote from the trigger data.
+An optional filter narrows it to a source (a physical remote, a group or the
+board) or to one remote address.
 """
 
 from __future__ import annotations
@@ -24,17 +26,22 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.trigger import TriggerActionType, TriggerInfo
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
+from .const import DOMAIN, EVENT_SHADE_COMMAND
 from .cover import EVT_SHADECOMMAND
 
-EVENT_TYPE = "espsomfy-rts_event"
 TRIGGER_COMMAND = "command_received"
 TRIGGER_TYPES = {TRIGGER_COMMAND}
+
+CONF_SOURCE = "source"
+CONF_REMOTE_ADDRESS = "remote_address"
+SOURCES = ["remote", "group", "internal"]
 
 TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
     {
         vol.Required(CONF_ENTITY_ID): cv.entity_id_or_uuid,
         vol.Required(CONF_TYPE): vol.In(TRIGGER_TYPES),
+        vol.Optional(CONF_SOURCE): vol.In(SOURCES),
+        vol.Optional(CONF_REMOTE_ADDRESS): cv.positive_int,
     }
 )
 
@@ -60,6 +67,20 @@ async def async_get_triggers(
     return triggers
 
 
+async def async_get_trigger_capabilities(
+    hass: HomeAssistant, config: ConfigType
+) -> dict[str, vol.Schema]:
+    """The optional source and remote address filters shown in the editor."""
+    return {
+        "extra_fields": vol.Schema(
+            {
+                vol.Optional(CONF_SOURCE): vol.In(SOURCES),
+                vol.Optional(CONF_REMOTE_ADDRESS): cv.positive_int,
+            }
+        )
+    }
+
+
 async def async_attach_trigger(
     hass: HomeAssistant,
     config: ConfigType,
@@ -72,14 +93,19 @@ async def async_attach_trigger(
         er.async_resolve_entity_id(registry, config[CONF_ENTITY_ID])
         or config[CONF_ENTITY_ID]
     )
+    event_data: dict[str, object] = {
+        "entity_id": entity_id,
+        "event_key": EVT_SHADECOMMAND,
+    }
+    if CONF_SOURCE in config:
+        event_data["source"] = config[CONF_SOURCE]
+    if CONF_REMOTE_ADDRESS in config:
+        event_data["source_address"] = config[CONF_REMOTE_ADDRESS]
     event_config = event_trigger.TRIGGER_SCHEMA(
         {
             event_trigger.CONF_PLATFORM: "event",
-            event_trigger.CONF_EVENT_TYPE: EVENT_TYPE,
-            event_trigger.CONF_EVENT_DATA: {
-                "entity_id": entity_id,
-                "event_key": EVT_SHADECOMMAND,
-            },
+            event_trigger.CONF_EVENT_TYPE: EVENT_SHADE_COMMAND,
+            event_trigger.CONF_EVENT_DATA: event_data,
         }
     )
     return await event_trigger.async_attach_trigger(

@@ -380,11 +380,34 @@
         "repeaters": "Repeater",
         "mqtt": "MQTT"
       }
+    },
+    "command_source": {
+      "options": {
+        "remote": "Eine Fernbedienung",
+        "group": "Eine Gruppe",
+        "internal": "Home Assistant oder das Gerät"
+      }
     }
   },
   "device_automation": {
     "trigger_type": {
       "command_received": "{entity_name} hat einen Befehl empfangen"
+    },
+    "extra_fields": {
+      "source": "Quelle",
+      "remote_address": "Fernbedienungsadresse"
+    }
+  },
+  "triggers": {
+    "command_received": {
+      "name": "Ein Behang hat einen Befehl empfangen",
+      "description": "Startet, wenn das Gerät einen Befehl für einen Behang sieht, von Home Assistant oder einer Fernbedienung.",
+      "fields": {
+        "source": {
+          "name": "Quelle",
+          "description": "Nur bei Befehlen aus dieser Quelle starten."
+        }
+      }
     }
   }
 }

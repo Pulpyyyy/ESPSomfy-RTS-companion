@@ -82,6 +82,12 @@ Chaque commande vue par la carte (depuis Home Assistant, une télécommande phys
 | `name` | Le nom de l'équipement. |
 | `remote_address` | L'adresse radio du moteur dans ESPSomfy-RTS. |
 | `source_address` | L'adresse de la source (canal de télécommande ou groupe). |
+| `remote_type` | `remote` (télécommande dédiée), `group` ou `internal`. |
+| `remote_slot` | Le slot 1-based de la télécommande dédiée sur ce volet, sinon vide. |
+| `remote_linked` | La télécommande source est-elle appairée à ce volet. |
+| `remote_name` | Un nom lisible : `Télécommande <volet> #<slot>` pour une dédiée, le nom du groupe pour un groupe, vide pour `internal`. |
+| `device_id` | L'appareil Home Assistant du volet. |
+| `area` | La pièce du volet, le cas échéant. |
 
 `source` indique l'origine : `remote` (télécommande physique), `internal` (interface de la carte) ou `group` (commande de groupe). `command` est l'action : `Up`, `Down`, `My`, `StepUp`, `StepDown`, `Prog`, ou une combinaison de touches (`My+Up`, `My+Down`, `Up+Down`, `My+Up+Down`).
 
@@ -102,6 +108,21 @@ actions:
       message: >-
         {{ trigger.event.data.name }} : {{ trigger.event.data.command }}
         (depuis {{ trigger.event.data.source }})
+```
+
+## Tous les volets d'un coup
+
+Pour démarrer sur une commande de n'importe quel volet, présent ou futur, utilisez le déclencheur **Un volet a reçu une commande** de l'intégration (Nouvelle automatisation > Ajouter un déclencheur > ESPSomfy-RTS Companion). Laissez la cible vide pour tous les volets, ou choisissez des volets, des pièces ou des étiquettes, avec un filtre de source facultatif.
+
+```yaml
+triggers:
+  - trigger: espsomfy_rts_companion.command_received
+    options:
+      source: remote
+actions:
+  - action: notify.notify
+    data:
+      message: "{{ trigger.event.data.remote_name }} sur {{ trigger.event.data.name }}"
 ```
 
 ## Crédits

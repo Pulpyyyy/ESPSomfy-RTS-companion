@@ -380,11 +380,34 @@
         "repeaters": "Repetidores",
         "mqtt": "MQTT"
       }
+    },
+    "command_source": {
+      "options": {
+        "remote": "Un mando físico",
+        "group": "Un grupo",
+        "internal": "Home Assistant o el dispositivo"
+      }
     }
   },
   "device_automation": {
     "trigger_type": {
       "command_received": "{entity_name} ha recibido una orden"
+    },
+    "extra_fields": {
+      "source": "Fuente",
+      "remote_address": "Dirección del mando"
+    }
+  },
+  "triggers": {
+    "command_received": {
+      "name": "Una persiana ha recibido una orden",
+      "description": "Empieza cuando el dispositivo ve una orden para una persiana, desde Home Assistant o un mando físico.",
+      "fields": {
+        "source": {
+          "name": "Fuente",
+          "description": "Empezar solo con órdenes de esta fuente."
+        }
+      }
     }
   }
 }

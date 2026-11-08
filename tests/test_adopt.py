@@ -136,7 +136,7 @@ async def test_entity_ids_areas_and_names_survive_the_new_domain(
 
     device = dr.async_get(hass).async_get(hub.id)
     assert device.identifiers == {(DOMAIN, BOARD)}
-    assert device.config_entries == {entry.entry_id}
+    assert device.config_entry_id == entry.entry_id
     assert device.area_id == hub.area_id
     assert device.name_by_user == "Box du garage"
 

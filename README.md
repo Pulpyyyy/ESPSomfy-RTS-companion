@@ -82,6 +82,12 @@ Every command the board sees (from Home Assistant, a physical remote or its web 
 | `name` | The name of the device. |
 | `remote_address` | The radio address of the motor in ESPSomfy-RTS. |
 | `source_address` | The address of the source (remote channel or group). |
+| `remote_type` | `remote` (a dedicated remote), `group` or `internal`. |
+| `remote_slot` | The 1-based slot of a dedicated remote on this shade, else empty. |
+| `remote_linked` | Whether the source remote is linked to this shade. |
+| `remote_name` | A readable name: `Remote <shade> #<slot>` for a dedicated remote, the group name for a group, empty for internal. |
+| `device_id` | The Home Assistant device of the shade. |
+| `area` | The area of the shade, if any. |
 
 `source` says where the command came from: `remote` (a physical remote), `internal` (the board's interface) or `group` (a group command). `command` is the action: `Up`, `Down`, `My`, `StepUp`, `StepDown`, `Prog`, or a key combination (`My+Up`, `My+Down`, `Up+Down`, `My+Up+Down`).
 
@@ -102,6 +108,21 @@ actions:
       message: >-
         {{ trigger.event.data.name }}: {{ trigger.event.data.command }}
         (from {{ trigger.event.data.source }})
+```
+
+## All shades at once
+
+To start on a command from any shade, present or future, use the **A shade received a command** trigger of the integration (New automation > Add trigger > ESPSomfy-RTS Companion). Leave the target empty for every shade, or pick shades, areas or labels, and optionally filter by source.
+
+```yaml
+triggers:
+  - trigger: espsomfy_rts_companion.command_received
+    options:
+      source: remote
+actions:
+  - action: notify.notify
+    data:
+      message: "{{ trigger.event.data.remote_name }} on {{ trigger.event.data.name }}"
 ```
 
 ## Credits

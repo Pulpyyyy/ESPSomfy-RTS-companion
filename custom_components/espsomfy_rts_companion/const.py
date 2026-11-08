@@ -71,3 +71,14 @@ PLATFORMS: list[Platform] = [
 
 # Sections a board restore can bring back (restore_options_t on the firmware).
 RESTORE_SECTIONS = ("shades", "settings", "network", "transceiver", "repeaters", "mqtt")
+
+# Home Assistant event bus name for shade commands the board reports.
+EVENT_SHADE_COMMAND = "espsomfy-rts_event"
+# "Remote", per Home Assistant language, to build a default remote name in
+# the event when a command comes from a dedicated remote.
+REMOTE_NAME_PREFIX = {
+    "en": "Remote",
+    "fr": "Télécommande",
+    "de": "Fernbedienung",
+    "es": "Mando",
+}

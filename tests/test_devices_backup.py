@@ -57,7 +57,7 @@ async def _setup(hass: HomeAssistant, aioclient_mock, entry, *, shades_status: i
 
 
 def _device(hass: HomeAssistant, identifier: str) -> dr.DeviceEntry | None:
-    return dr.async_get(hass).async_get_device(identifiers={(DOMAIN, identifier)})
+    return dr.async_get(hass).async_get_device_by_identifier((DOMAIN, identifier), hass.config_entries.async_entries(DOMAIN)[0].entry_id)
 
 
 def _stale_shade(hass: HomeAssistant, entry: MockConfigEntry) -> None:

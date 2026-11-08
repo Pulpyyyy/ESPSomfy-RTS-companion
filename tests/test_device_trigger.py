@@ -66,7 +66,7 @@ def _cover(hass: HomeAssistant) -> str:
 
 
 def _shade_device(hass: HomeAssistant) -> str:
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, f"shade_{UID}_1")})
+    device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, f"shade_{UID}_1"), hass.config_entries.async_entries(DOMAIN)[0].entry_id)
     assert device is not None
     return device.id
 
@@ -125,3 +125,43 @@ async def test_command_event_fires_the_automation(
     await hass.async_block_till_done()
     assert len(calls) == 1
     assert calls[0].data["command"] == "my"
+
+
+async def test_device_trigger_source_filter(hass: HomeAssistant, aioclient_mock) -> None:
+    """The optional source filter narrows a device trigger to one source."""
+    await _setup(hass, aioclient_mock)
+    calls: list[ServiceCall] = []
+    hass.services.async_register("test", "record", lambda call: calls.append(call))
+
+    assert await async_setup_component(
+        hass,
+        automation.DOMAIN,
+        {
+            automation.DOMAIN: {
+                "trigger": {
+                    "platform": "device",
+                    "domain": DOMAIN,
+                    "device_id": _shade_device(hass),
+                    "entity_id": _cover(hass),
+                    "type": "command_received",
+                    "source": "remote",
+                },
+                "action": {"service": "test.record"},
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    hass.bus.async_fire(
+        "espsomfy-rts_event",
+        {"entity_id": _cover(hass), "event_key": "shadeCommand", "source": "internal"},
+    )
+    await hass.async_block_till_done()
+    assert not calls
+
+    hass.bus.async_fire(
+        "espsomfy-rts_event",
+        {"entity_id": _cover(hass), "event_key": "shadeCommand", "source": "remote"},
+    )
+    await hass.async_block_till_done()
+    assert len(calls) == 1

@@ -20,6 +20,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import (
+    area_registry as ar,
     device_registry as dr,
     entity_platform as ep,
     entity_registry as er,
@@ -31,11 +32,13 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
+    EVENT_SHADE_COMMAND,
     EVT_CONNECTED,
     EVT_GROUPREMOVED,
     EVT_SHADECOMMAND,
     EVT_SHADEREMOVED,
     EVT_SHADESTATE,
+    REMOTE_NAME_PREFIX,
 )
 from .controller import ESPSomfyController
 from .entity import ESPSomfyEntity
@@ -377,15 +380,12 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
         else:
             entities.async_remove(self.entity_id)
         devices = dr.async_get(self.hass)
-        device = devices.async_get_device(
-            identifiers={
-                (DOMAIN, f"group_{self._controller.unique_id}_{self._group_id}")
-            }
+        device = devices.async_get_device_by_identifier(
+            (DOMAIN, f"group_{self._controller.unique_id}_{self._group_id}"),
+            self._controller.config_entry_id,
         )
         # Removing the device takes the sun/wind entities of the group with it.
-        if device is not None and self._controller.config_entry_id in (
-            device.config_entries
-        ):
+        if device is not None:
             devices.async_update_device(
                 device.id, remove_config_entry_id=self._controller.config_entry_id
             )
@@ -442,6 +442,91 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
         if ATTR_REPEAT in kwargs:
             cmd[ATTR_REPEAT] = kwargs[ATTR_REPEAT]
         await self._controller.api.group_command(cmd)
+
+
+def _linked_remotes(controller: ESPSomfyController, shade_id: int) -> list:
+    """The remotes linked to a shade, as the board last reported them."""
+    for shade in controller.api.shades:
+        if int(shade.get("shadeId", -1)) == int(shade_id):
+            return shade.get("linkedRemotes") or []
+    return []
+
+
+def _group_name(controller: ESPSomfyController, address: int) -> str | None:
+    """Name of the group whose virtual remote has this address."""
+    if not address:
+        return None
+    for group in controller.api.groups:
+        if int(group.get("remoteAddress", 0) or 0) == address:
+            return group.get("name") or None
+    return None
+
+
+def _device_and_area(hass: HomeAssistant, entity_id: str) -> tuple[str | None, str | None]:
+    """The device id and area name of a cover entity, best effort."""
+    entity = er.async_get(hass).async_get(entity_id)
+    if entity is None or entity.device_id is None:
+        return (entity.device_id if entity else None), None
+    device = dr.async_get(hass).async_get(entity.device_id)
+    if device is None or device.area_id is None:
+        return entity.device_id, None
+    area = ar.async_get(hass).async_get_area(device.area_id)
+    return entity.device_id, area.name if area else None
+
+
+def build_command_event(
+    hass: HomeAssistant,
+    controller: ESPSomfyController,
+    shade_id: int,
+    shade_name: str,
+    entity_id: str,
+    attrs: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the espsomfy-rts_event payload for a shade command.
+
+    The board only reports an address and a source; the type, the slot, whether
+    the remote is linked to this shade and a readable name are worked out here
+    from the shade and group lists, so an automation never has to.
+    """
+    source = attrs.get("cmd_source", "") or ""
+    source_address = int(attrs.get("cmd_address", 0) or 0)
+    remote_type = source if source in ("remote", "group", "internal") else "unknown"
+
+    slot: int | None = None
+    remote_linked = False
+    if remote_type == "remote" and source_address:
+        for index, remote in enumerate(_linked_remotes(controller, shade_id)):
+            if int(remote.get("remoteAddress", 0) or 0) == source_address:
+                slot = index + 1  # 1-based: slot 0 on the board is remote #1
+                remote_linked = True
+                break
+
+    if remote_type == "group":
+        remote_name: str | None = _group_name(controller, source_address)
+    elif remote_type == "remote":
+        lang = (hass.config.language or "en").split("-")[0]
+        prefix = REMOTE_NAME_PREFIX.get(lang, REMOTE_NAME_PREFIX["en"])
+        remote_name = f"{prefix} {shade_name} #{slot}" if slot else f"{prefix} {shade_name}"
+    else:
+        remote_name = None
+
+    device_id, area = _device_and_area(hass, entity_id)
+    return {
+        "entity_id": entity_id,
+        "event_key": EVT_SHADECOMMAND,
+        "name": shade_name,
+        "source": source,
+        "remote_address": int(attrs.get("remote_address", 0) or 0),
+        "source_address": source_address,
+        "command": attrs.get("last_cmd", "") or "",
+        "timestamp": attrs.get("cmd_fired"),
+        "remote_type": remote_type,
+        "remote_slot": slot,
+        "remote_linked": remote_linked,
+        "remote_name": remote_name,
+        "device_id": device_id,
+        "area": area,
+    }
 
 
 class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
@@ -685,20 +770,24 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
         ) != int(data["sourceAddress"]):
             self._state_attributes["cmd_address"] = int(data["sourceAddress"])
             upd = True
-        self._state_attributes["cmd_fired"] = dt_util.as_timestamp(dt_util.utcnow())
-        bus_data = {
-            "entity_id": self.entity_id,
-            "event_key": EVT_SHADECOMMAND,
-            "name": self._shade_name,
-            "source": self._state_attributes.get("cmd_source", ""),
-            "remote_address": self._state_attributes.get("remote_address", 0),
-            "source_address": self._state_attributes.get("cmd_address", 0),
-            "command": self._state_attributes.get("last_cmd", ""),
-            "timestamp": self._state_attributes.get("cmd_fired"),
-        }
-        self.hass.bus.async_fire("espsomfy-rts_event", bus_data)
+        self._fire_command_event()
         if upd:
             self.async_write_ha_state()
+
+    def _fire_command_event(self) -> None:
+        """Build and fire the enriched command event for this shade."""
+        self._state_attributes["cmd_fired"] = dt_util.as_timestamp(dt_util.utcnow())
+        self.hass.bus.async_fire(
+            EVENT_SHADE_COMMAND,
+            build_command_event(
+                self.hass,
+                self._controller,
+                self._shade_id,
+                self._shade_name,
+                self.entity_id,
+                self._state_attributes,
+            ),
+        )
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
@@ -738,20 +827,7 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
                     self._state_attributes["cmd_address"] = self._controller.data[
                         "sourceAddress"
                     ]
-                self._state_attributes["cmd_fired"] = dt_util.as_timestamp(
-                    dt_util.utcnow()
-                )
-                bus_data = {
-                    "entity_id": self.entity_id,
-                    "event_key": EVT_SHADECOMMAND,
-                    "name": self._shade_name,
-                    "source": self._state_attributes.get("cmd_source", ""),
-                    "remote_address": self._state_attributes.get("remote_address", 0),
-                    "source_address": self._state_attributes.get("cmd_address", 0),
-                    "command": self._state_attributes.get("last_cmd", ""),
-                    "timestamp": self._state_attributes.get("cmd_fired"),
-                }
-                self.hass.bus.async_fire("espsomfy-rts_event", bus_data)
+                self._fire_command_event()
                 self.async_write_ha_state()
 
     @property
