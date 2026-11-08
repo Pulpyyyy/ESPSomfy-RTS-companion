@@ -406,6 +406,10 @@
         "source": {
           "name": "Fuente",
           "description": "Empezar solo con órdenes de esta fuente."
+        },
+        "remote_address": {
+          "name": "Dirección del mando",
+          "description": "Empezar solo con órdenes de esta dirección (mando dedicado o grupo)."
         }
       }
     }

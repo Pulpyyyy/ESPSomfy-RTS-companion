@@ -406,6 +406,10 @@
         "source": {
           "name": "Source",
           "description": "Ne démarrer que pour les commandes venant de cette source."
+        },
+        "remote_address": {
+          "name": "Adresse de la télécommande",
+          "description": "Ne démarrer que pour les commandes venant de cette adresse (télécommande dédiée ou groupe)."
         }
       }
     }

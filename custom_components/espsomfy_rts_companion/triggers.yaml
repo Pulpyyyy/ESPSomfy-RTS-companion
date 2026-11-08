@@ -12,3 +12,8 @@ command_received:
             - remote
             - group
             - internal
+    remote_address:
+      selector:
+        number:
+          min: 0
+          mode: box

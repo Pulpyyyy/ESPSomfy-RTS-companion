@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.2.1
+
+### Fixed
+- The **integration command trigger** now accepts the `remote_address`
+  filter its documentation and the device trigger already offered; it was
+  rejected before.
+
 ## 4.2.0
 
 ### Added

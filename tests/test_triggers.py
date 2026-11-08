@@ -213,3 +213,34 @@ async def test_integration_trigger_target_limits_to_a_shade(
     await _command(hass, entry, source="remote", sourceAddress=5001, remoteAddress=100001)
     # The command is for cover Baie, not the targeted (missing) entity.
     assert not calls
+
+
+async def test_integration_trigger_remote_address_filter(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """command_received with a remote_address only starts for that remote."""
+    entry = await _setup(hass, aioclient_mock)
+    entry.runtime_data.ws_onopen()
+    calls = await _record_service(hass)
+
+    assert await async_setup_component(
+        hass,
+        automation.DOMAIN,
+        {
+            automation.DOMAIN: {
+                "trigger": {
+                    "trigger": "espsomfy_rts_companion.command_received",
+                    "options": {"source": "remote", "remote_address": 5001},
+                },
+                "action": {"service": "test.record"},
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Another remote of the same shade is filtered out.
+    await _command(hass, entry, source="remote", sourceAddress=5002, remoteAddress=100001)
+    assert not calls
+
+    await _command(hass, entry, source="remote", sourceAddress=5001, remoteAddress=100001)
+    assert len(calls) == 1

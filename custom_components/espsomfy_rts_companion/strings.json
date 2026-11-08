@@ -406,6 +406,10 @@
         "source": {
           "name": "Source",
           "description": "Only start for commands from this source."
+        },
+        "remote_address": {
+          "name": "Remote address",
+          "description": "Only start for commands from this remote address (a dedicated remote or a group)."
         }
       }
     }

@@ -13,6 +13,7 @@ import voluptuous as vol
 
 from homeassistant.const import CONF_OPTIONS
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.target import (
     TargetSelection,
     async_extract_referenced_entity_ids,
@@ -29,9 +30,15 @@ from .const import EVENT_SHADE_COMMAND
 from .cover import EVT_SHADECOMMAND
 
 CONF_SOURCE = "source"
+CONF_REMOTE_ADDRESS = "remote_address"
 SOURCES = ["remote", "group", "internal"]
 
-_OPTIONS_SCHEMA = vol.Schema({vol.Optional(CONF_SOURCE): vol.In(SOURCES)})
+_OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Optional(CONF_SOURCE): vol.In(SOURCES),
+        vol.Optional(CONF_REMOTE_ADDRESS): cv.positive_int,
+    }
+)
 
 
 class CommandReceivedTrigger(Trigger):
@@ -51,7 +58,9 @@ class CommandReceivedTrigger(Trigger):
         super().__init__(hass, config)
         self._hass = hass
         self._target = config.target
-        self._source = (config.options or {}).get(CONF_SOURCE)
+        options = config.options or {}
+        self._source = options.get(CONF_SOURCE)
+        self._remote_address = options.get(CONF_REMOTE_ADDRESS)
 
     async def async_attach_runner(
         self,
@@ -76,6 +85,11 @@ class CommandReceivedTrigger(Trigger):
             if entity_ids is not None and data.get("entity_id") not in entity_ids:
                 return
             if self._source is not None and data.get("source") != self._source:
+                return
+            if (
+                self._remote_address is not None
+                and data.get("source_address") != self._remote_address
+            ):
                 return
             run_action({"event": event}, "command received", event.context)
 

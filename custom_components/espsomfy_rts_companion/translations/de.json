@@ -406,6 +406,10 @@
         "source": {
           "name": "Quelle",
           "description": "Nur bei Befehlen aus dieser Quelle starten."
+        },
+        "remote_address": {
+          "name": "Fernbedienungsadresse",
+          "description": "Nur bei Befehlen von dieser Adresse starten (Fernbedienung oder Gruppe)."
         }
       }
     }
