@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.3.1
+
+### Changed
+- **Relicensed under the MIT License**, so the integration can be listed in
+  the default HACS catalog.
+
 ## 4.3.0
 
 ### Added
