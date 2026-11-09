@@ -46,14 +46,14 @@ Home Assistant trouve la carte tout seul (UPnP ou mDNS) : elle apparaît dans **
 
 ## Vous venez d'une intégration ESPSomfy-RTS précédente
 
-ESPSomfy-RTS Companion prend la suite des intégrations ESPSomfy-RTS précédentes pour Home Assistant, sous un nouveau domaine. Elle reprend votre carte telle qu'elle est : chaque entité garde son identifiant, chaque appareil garde sa pièce et son nom, et l'historique continue.
+ESPSomfy-RTS Companion prend la suite des intégrations ESPSomfy-RTS précédentes pour Home Assistant, sous un nouveau domaine. Quand vous ajoutez une carte déjà installée par une intégration précédente, Companion propose de la reprendre, et ne le fait que si vous confirmez : chaque entité garde son identifiant, chaque appareil garde sa pièce et son nom, et l'historique continue.
 
-1. Retirez l'intégration précédente de HACS, ou supprimez son dossier de `config/custom_components/`. **Laissez-la dans Paramètres › Appareils et services** : Companion prend le relais à partir de là.
-2. Installez ESPSomfy-RTS Companion comme ci-dessus et redémarrez Home Assistant.
-3. Ajoutez la carte quand Home Assistant la propose, ou à la main avec son adresse. Le code PIN ou le mot de passe de l'installation précédente est repris, ses options aussi.
-4. Dans vos automatisations et scripts, remplacez les actions de l'intégration précédente (`espsomfy_rts.*` ou `espsomfy_rts_enhanced.*`) par `espsomfy_rts_companion.*`. Les identifiants d'entités et les événements `espsomfy-rts_event` ne changent pas.
+1. Installez ESPSomfy-RTS Companion comme ci-dessus et redémarrez Home Assistant.
+2. Ajoutez la carte quand Home Assistant la propose, ou à la main avec son adresse, et saisissez son code PIN ou son mot de passe.
+3. Si l'intégration précédente est encore installée pour cette carte, l'installation affiche une étape qui indique combien d'entités et d'appareils seront déplacés, et demande s'il faut la reprendre. Confirmez pour les déplacer ici et retirer l'intégration précédente ; leurs identifiants d'entités, leurs pièces, leurs noms et leur historique sont conservés. Refusez pour ajouter la carte comme neuve.
+4. Dans vos automatisations et scripts, remplacez les actions de l'intégration précédente par `espsomfy_rts_companion.*`. Quand vous avez repris la carte, les identifiants d'entités et les événements `espsomfy-rts_event` ne changent pas.
 
-Si l'intégration précédente a déjà été supprimée des Appareils et services, il n'y a plus rien à reprendre : les entités reçoivent de nouveaux identifiants, que vous pouvez renommer dans leurs paramètres.
+Reprise à la main : si vous préférez ne pas utiliser l'étape de reprise, refusez-la ou retirez d'abord l'intégration précédente de Paramètres › Appareils et services, puis ajoutez la carte à neuf. Ses entités reçoivent de nouveaux identifiants, que vous pouvez renommer dans leurs paramètres.
 
 ## Fonctionnalités
 

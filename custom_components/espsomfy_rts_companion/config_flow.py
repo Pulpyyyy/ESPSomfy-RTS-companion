@@ -19,6 +19,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util.network import is_host_valid
 
 from .const import (
@@ -74,21 +75,46 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    def _carry_over(self, data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Data and options of the new entry, completed from an earlier integration.
+    async def _finish(self, title: str, data: dict[str, Any]) -> FlowResult:
+        """Create the entry, or first offer to take over an earlier integration.
 
-        The same board set up under an earlier ESPSomfy-RTS integration keeps its
-        PIN or password and its options; what was entered here wins. Its entities
-        and devices are taken over when the entry is set up (adopt.py).
+        When the same board is set up under an earlier ESPSomfy-RTS integration,
+        the user is asked whether to move its entities and devices here; nothing
+        is touched otherwise. Credentials are never read from the other entry.
         """
-        previous = previous_entry(self.hass, self.unique_id)
-        if previous is None:
-            return dict(data), {}
-        credentials = {
-            k: previous.data[k] for k in (CONF_USERNAME, CONF_PASSWORD, CONF_PIN) if previous.data.get(k)
-        }
-        options = {k: previous.options[k] for k in OPTION_KEYS if k in previous.options}
-        return {**credentials, **{k: v for k, v in data.items() if v}}, options
+        self._title = title
+        self._data = data
+        old = previous_entry(self.hass, self.unique_id)
+        if old is None:
+            return self.async_create_entry(title=title, data=data)
+        self._adopt_from = old.entry_id
+        return await self.async_step_adopt()
+
+    async def async_step_adopt(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Ask whether to take over an earlier ESPSomfy-RTS integration."""
+        old = self.hass.config_entries.async_get_entry(self._adopt_from)
+        if old is None:
+            return self.async_create_entry(title=self._title, data=self._data)
+        if user_input is not None:
+            data = dict(self._data)
+            if user_input["adopt"]:
+                # A one-shot marker: async_setup_entry moves the registry
+                # entries and removes the old entry, then clears it.
+                data["adopt_from"] = self._adopt_from
+            return self.async_create_entry(title=self._title, data=data)
+        entities = len(er.async_entries_for_config_entry(er.async_get(self.hass), old.entry_id))
+        devices = len(dr.async_entries_for_config_entry(dr.async_get(self.hass), old.entry_id))
+        return self.async_show_form(
+            step_id="adopt",
+            data_schema=vol.Schema({vol.Required("adopt", default=True): bool}),
+            description_placeholders={
+                "name": old.title,
+                "entities": str(entities),
+                "devices": str(devices),
+            },
+        )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -105,20 +131,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await api.discover()
                 await self.async_set_unique_id(f"espsomfy_{api.server_id}")
                 self._abort_if_unique_id_configured(updates={CONF_HOST: self.host})
-                data, options = self._carry_over(user_input)
                 await api.login(
                     {
-                        "username": data.get(CONF_USERNAME, ""),
-                        "password": data.get(CONF_PASSWORD, ""),
-                        "pin": data.get(CONF_PIN, ""),
+                        "username": user_input.get(CONF_USERNAME, ""),
+                        "password": user_input.get(CONF_PASSWORD, ""),
+                        "pin": user_input.get(CONF_PIN, ""),
                     }
                 )
-                return self.async_create_entry(
-                    title=api.deviceName,
-                    description=f"ESPSomfy-RTS {api.server_id}",
-                    data=data,
-                    options=options,
-                )
+                return await self._finish(api.deviceName, dict(user_input))
             except InvalidHost:
                 errors[CONF_HOST] = "invalid_host"
             except (aiohttp.ClientError, OSError, TimeoutError):
@@ -168,9 +188,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle a flow initiated by zeroconf."""
         if user_input is not None:
-            data, options = self._carry_over({CONF_HOST: self.zero_conf.host})
-            return self.async_create_entry(
-                title=self.zero_conf.hostname, data=data, options=options
+            return await self._finish(
+                self.zero_conf.hostname, {CONF_HOST: self.zero_conf.host}
             )
 
         return self.async_show_form(

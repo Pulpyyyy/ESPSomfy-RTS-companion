@@ -17,7 +17,18 @@ from homeassistant.core import HomeAssistant
 from . import ESPSomfyConfigEntry
 from .controller import ESPSomfyController
 
-TO_REDACT = {CONF_PASSWORD, CONF_PIN, CONF_USERNAME, "apiKey", "ssid", "serverId"}
+TO_REDACT = {
+    CONF_PASSWORD,
+    CONF_PIN,
+    CONF_USERNAME,
+    "apiKey",
+    "ssid",
+    "serverId",
+    # The radio address and rolling code are what it takes to clone a remote;
+    # they appear on shades, on groups and inside a group's linked shades.
+    "remoteAddress",
+    "rollingCode",
+}
 
 
 def _shade_summary(shade: dict[str, Any]) -> dict[str, Any]:
@@ -96,6 +107,8 @@ async def async_get_config_entry_diagnostics(
         "radio": _radio(controller),
         "organization_sync": controller.organization is not None,
         "shades": [_shade_summary(shade) for shade in api.shades],
-        "groups": api.groups,
+        # Groups keep their structure, but their own address and the addresses
+        # inside their linked shades are redacted by key.
+        "groups": async_redact_data(api.groups, TO_REDACT),
         "rooms": api.rooms,
     }

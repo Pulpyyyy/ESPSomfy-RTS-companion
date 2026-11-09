@@ -47,7 +47,11 @@ async def _setup(hass: HomeAssistant, aioclient_mock) -> MockConfigEntry:
     aioclient_mock.get(DISCOVERY_URL, json={**DISCOVERY_PAYLOAD, "version": "4.2.1"})
     aioclient_mock.put(LOGIN_URL, json={"success": True, "apiKey": "secret-key-123"})
     aioclient_mock.get(f"{API_URL}/shades", json=[SHADE])
-    aioclient_mock.get(f"{API_URL}/groups", json=[])
+    aioclient_mock.get(
+        f"{API_URL}/groups",
+        json=[{"groupId": 1, "name": "Rez", "remoteAddress": 777777,
+               "linkedShades": [{"shadeId": 1, "name": "Baie", "remoteAddress": 123456}]}],
+    )
     aioclient_mock.get(f"{API_URL}/rooms", json=[{"roomId": 1, "name": "Salon"}])
     aioclient_mock.get(f"http://{HOST}/rfStats", status=404, text="none")
     entry = MockConfigEntry(
@@ -99,3 +103,10 @@ async def test_diagnostics_redacts_secrets_and_keeps_the_useful_parts(
 
     # No radio statistics on this board.
     assert diag["radio"] == {"supported": False}
+
+    # Groups keep their structure, but their radio addresses are redacted.
+    group = diag["groups"][0]
+    assert group["groupId"] == 1 and group["name"] == "Rez"
+    assert group["remoteAddress"] == "**REDACTED**"
+    assert group["linkedShades"][0]["remoteAddress"] == "**REDACTED**"
+    assert "777777" not in flat

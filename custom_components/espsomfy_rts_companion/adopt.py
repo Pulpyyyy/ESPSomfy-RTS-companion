@@ -58,14 +58,17 @@ def _move_device(
     devices.async_update_device(device_id, remove_config_entry_id=old_entry_id)
 
 
-async def async_adopt_previous(
-    hass: HomeAssistant, entry: ConfigEntry, board_unique_id: str
+async def async_adopt_entry(
+    hass: HomeAssistant, entry: ConfigEntry, old_entry_id: str
 ) -> None:
-    """Move the registry entries of the same board from earlier integrations."""
-    for old_domain in PREVIOUS_DOMAINS:
-        for old in hass.config_entries.async_entries(old_domain):
-            if old.unique_id == board_unique_id:
-                await _async_adopt_entry(hass, entry, old)
+    """Move the registry entries of one earlier config entry to this one.
+
+    Only ever called after the user confirmed the takeover in the config flow,
+    for the entry they chose.
+    """
+    old = hass.config_entries.async_get_entry(old_entry_id)
+    if old is not None:
+        await _async_adopt_entry(hass, entry, old)
 
 
 async def _async_adopt_entry(hass: HomeAssistant, entry: ConfigEntry, old: ConfigEntry) -> None:

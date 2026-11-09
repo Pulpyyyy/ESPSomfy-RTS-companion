@@ -46,14 +46,14 @@ Home Assistant finds the board on its own (UPnP or mDNS): it shows up in **Setti
 
 ## Coming from an earlier ESPSomfy-RTS integration
 
-ESPSomfy-RTS Companion carries on the earlier ESPSomfy-RTS integrations for Home Assistant, under a new domain. It takes your board over as it is: every entity keeps its entity id, every device keeps its area and its name, and history carries on.
+ESPSomfy-RTS Companion carries on the earlier ESPSomfy-RTS integrations for Home Assistant, under a new domain. When you add a board that an earlier integration already set up, Companion offers to take it over, and only does so if you confirm: every entity keeps its entity id, every device keeps its area and its name, and history carries on.
 
-1. Remove the earlier integration from HACS, or delete its folder from `config/custom_components/`. **Leave it in Settings › Devices & services**: Companion takes over from there.
-2. Install ESPSomfy-RTS Companion as above and restart Home Assistant.
-3. Add the board when Home Assistant offers it, or by hand with its address. The PIN code or password of the earlier setup is reused, and so are its options.
-4. In your automations and scripts, replace the actions of the earlier integration (`espsomfy_rts.*` or `espsomfy_rts_enhanced.*`) with `espsomfy_rts_companion.*`. Entity ids and the `espsomfy-rts_event` events do not change.
+1. Install ESPSomfy-RTS Companion as above and restart Home Assistant.
+2. Add the board when Home Assistant offers it, or by hand with its address, and enter its PIN code or password.
+3. If the earlier integration is still set up for that board, the setup shows a step telling you how many entities and devices will move, and asks whether to take it over. Confirm to move them here and remove the earlier integration; its entity ids, areas, names and history are kept. Decline to add the board as new instead.
+4. In your automations and scripts, replace the earlier integration's actions with `espsomfy_rts_companion.*`. When you took the board over, entity ids and the `espsomfy-rts_event` events do not change.
 
-If the earlier integration was already removed from Devices & services, there is nothing left to take over: the entities get new ids, which you can rename back in their settings.
+Taking over by hand: if you would rather not use the takeover step, decline it or remove the earlier integration from Settings › Devices & services first, then add the board fresh. Its entities get new ids, which you can rename back in their settings.
 
 ## Features
 
