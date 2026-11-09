@@ -53,6 +53,13 @@
           "password": "Contraseña",
           "pin": "Código PIN"
         }
+      },
+      "adopt": {
+        "title": "Adoptar la integración anterior",
+        "description": "El dispositivo «{name}» ya está configurado con una integración ESPSomfy-RTS anterior ({entities} entidades, {devices} dispositivos). ¿Moverlos aquí para conservar sus identificadores, áreas e historial, y eliminar la integración anterior? Déjalo sin marcar para añadir el dispositivo de nuevo (identificadores nuevos).",
+        "data": {
+          "adopt": "Mover aquí las entidades y dispositivos existentes"
+        }
       }
     }
   },

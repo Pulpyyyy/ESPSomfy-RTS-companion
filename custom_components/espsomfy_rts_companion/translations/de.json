@@ -53,6 +53,13 @@
           "password": "Passwort",
           "pin": "PIN-Code"
         }
+      },
+      "adopt": {
+        "title": "Vorherige Integration übernehmen",
+        "description": "Das Gerät „{name}“ ist bereits unter einer früheren ESPSomfy-RTS-Integration eingerichtet ({entities} Entitäten, {devices} Geräte). Hierher verschieben, um Entitäts-IDs, Bereiche und Verlauf zu behalten, und die frühere Integration entfernen? Leer lassen, um das Gerät neu hinzuzufügen (neue IDs).",
+        "data": {
+          "adopt": "Vorhandene Entitäten und Geräte hierher verschieben"
+        }
       }
     }
   },

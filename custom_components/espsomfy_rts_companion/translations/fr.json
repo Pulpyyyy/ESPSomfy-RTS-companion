@@ -53,6 +53,13 @@
           "password": "Mot de passe",
           "pin": "Code PIN"
         }
+      },
+      "adopt": {
+        "title": "Reprendre l'intégration précédente",
+        "description": "Le boîtier « {name} » est déjà configuré sous une intégration ESPSomfy-RTS précédente ({entities} entités, {devices} appareils). Les déplacer ici pour garder leurs identifiants d'entités, leurs zones et leur historique, et retirer l'intégration précédente ? Laissez décoché pour ajouter le boîtier à neuf (nouveaux identifiants).",
+        "data": {
+          "adopt": "Déplacer ici les entités et appareils existants"
+        }
       }
     }
   },

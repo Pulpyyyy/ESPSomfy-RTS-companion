@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.4.0
+
+### Changed
+- **Taking over an earlier ESPSomfy-RTS integration is now an explicit,
+  confirmed step.** When you add a board that is already set up under an
+  earlier ESPSomfy-RTS integration, the setup asks whether to move its
+  entities and devices here (keeping their ids, areas and history) and
+  remove the old integration. Nothing is touched unless you confirm; decline
+  to add the board fresh. The credentials are no longer read from the other
+  integration, the setup form asks for them.
+
+### Fixed
+- **Diagnostics no longer expose radio addresses.** Groups are now redacted
+  like shades, so the group address and the addresses inside their linked
+  shades stay out of the download.
+
 ## 4.3.1
 
 ### Changed

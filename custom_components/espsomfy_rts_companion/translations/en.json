@@ -53,6 +53,13 @@
           "password": "Password",
           "pin": "PIN Code"
         }
+      },
+      "adopt": {
+        "title": "Take over the previous integration",
+        "description": "The board \"{name}\" is already set up under a previous ESPSomfy-RTS integration ({entities} entities, {devices} devices). Move them here to keep their entity ids, areas and history, and remove the previous integration? Leave off to add the board fresh (new entity ids).",
+        "data": {
+          "adopt": "Move the existing entities and devices here"
+        }
       }
     }
   },
