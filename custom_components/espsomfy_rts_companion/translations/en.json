@@ -340,6 +340,10 @@
       "title": "Not enough rooms on {device}",
       "description": "The area **{area}** could not be added as a room on {device}: the board already has its maximum of 16 rooms. Delete a room on the board, or move the shade back to an area that already has its room."
     },
+    "room_name_clash": {
+      "title": "Two areas share one room name on {device}",
+      "description": "The areas **{area}** and **{other}** both become the room **{room}** on {device}, which keeps 20 bytes per name (an accented letter takes two). The shades of **{area}** were not moved on the board. Rename one of the two areas so that they differ within their first 20 bytes."
+    },
     "organization_conflict": {
       "title": "Rooms differ between {device} and Home Assistant",
       "fix_flow": {

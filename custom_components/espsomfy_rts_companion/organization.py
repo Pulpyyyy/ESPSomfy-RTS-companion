@@ -48,6 +48,7 @@ STORE_VERSION = 1
 # Board events often come in bursts (a shade and its room): wait for the last.
 REFRESH_DELAY = 2
 ISSUE_ROOM_LIMIT = "room_limit"
+ISSUE_ROOM_NAME_CLASH = "room_name_clash"
 ISSUE_CONFLICT = "organization_conflict"
 RESOLVE_BOARD = "board"
 RESOLVE_HOME_ASSISTANT = "home_assistant"
@@ -56,10 +57,13 @@ RESOLVE_HOME_ASSISTANT = "home_assistant"
 def room_name_for_board(name: str) -> str:
     """Return an area name as the board can store it.
 
-    The board keeps 20 characters and turns commas into spaces (they separate
-    the fields of its configuration file).
+    The board keeps 20 bytes of UTF-8, not 20 characters, and turns commas into
+    spaces (they separate the fields of its configuration file). An accented
+    name is cut on a whole character so that it reads back exactly as sent.
     """
-    return name.replace(",", " ").strip()[:ROOM_NAME_MAX].strip()
+    name = name.replace(",", " ").strip()
+    raw = name.encode("utf-8")[:ROOM_NAME_MAX]
+    return raw.decode("utf-8", errors="ignore").strip()
 
 
 class OrganizationSync:
@@ -172,7 +176,7 @@ class OrganizationSync:
                 continue
             area = areas.async_get_area(self._room_area.get(room_id, ""))
             if area is None:
-                area = areas.async_get_area_by_name(name) or areas.async_create(name)
+                area = self._area_for_board_name(name) or areas.async_create(name)
                 self._room_area[room_id] = area.id
             elif room_name_for_board(area.name) != name:
                 # Renamed on the board: follow it.
@@ -374,10 +378,34 @@ class OrganizationSync:
         if area is None:
             return None
         name = room_name_for_board(area.name)
+        clash_issue = f"{ISSUE_ROOM_NAME_CLASH}_{self.controller.unique_id}_{area_id}"
         for room in self.api.rooms:
             if (room.get("name") or "").strip().casefold() == name.casefold():
+                other = ar.async_get(self.hass).async_get_area(
+                    self._room_area.get(str(room["roomId"]), "")
+                )
+                if other is not None and other.id != area_id:
+                    # Two areas that only differ past the board's 20 bytes: sharing
+                    # the room would move the shades of one into the other.
+                    ir.async_create_issue(
+                        self.hass,
+                        DOMAIN,
+                        clash_issue,
+                        is_fixable=False,
+                        severity=ir.IssueSeverity.WARNING,
+                        translation_key=ISSUE_ROOM_NAME_CLASH,
+                        translation_placeholders={
+                            "device": self.controller.device_name,
+                            "area": area.name,
+                            "other": other.name,
+                            "room": name,
+                        },
+                    )
+                    return None
+                ir.async_delete_issue(self.hass, DOMAIN, clash_issue)
                 self._room_area[str(room["roomId"])] = area_id
                 return int(room["roomId"])
+        ir.async_delete_issue(self.hass, DOMAIN, clash_issue)
         room = await self.api.add_room(name)
         if room is None:
             ir.async_create_issue(
@@ -412,6 +440,23 @@ class OrganizationSync:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _area_for_board_name(self, name: str) -> ar.AreaEntry | None:
+        """Find the unlinked area a board room name stands for.
+
+        The board keeps 20 bytes, so a long area name comes back cut: match it
+        the way it was cut, not only by its full name.
+        """
+        areas = ar.async_get(self.hass)
+        linked = set(self._room_area.values())
+        exact = areas.async_get_area_by_name(name)
+        if exact is not None and exact.id not in linked:
+            return exact
+        wanted = name.casefold()
+        for area in areas.async_list_areas():
+            if area.id not in linked and room_name_for_board(area.name).casefold() == wanted:
+                return area
+        return exact
 
     def _shade_identifier(self, shade_id: str) -> tuple[str, str]:
         return (DOMAIN, f"shade_{self.controller.unique_id}_{shade_id}")

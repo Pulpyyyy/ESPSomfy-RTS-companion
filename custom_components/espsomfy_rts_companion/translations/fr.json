@@ -340,6 +340,10 @@
       "title": "Plus de pièce libre sur {device}",
       "description": "La zone **{area}** n'a pas pu être ajoutée comme pièce sur {device} : la carte a déjà son maximum de 16 pièces. Supprimez une pièce sur la carte, ou remettez le volet dans une zone qui a déjà sa pièce."
     },
+    "room_name_clash": {
+      "title": "Deux zones donnent le même nom de pièce sur {device}",
+      "description": "Les zones **{area}** et **{other}** deviennent toutes les deux la pièce **{room}** sur {device}, qui garde 20 octets par nom (une lettre accentuée en compte deux). Les volets de **{area}** n'ont pas été déplacés sur la carte. Renommez l'une des deux zones pour qu'elles diffèrent dans leurs 20 premiers octets."
+    },
     "organization_conflict": {
       "title": "Les pièces diffèrent entre {device} et Home Assistant",
       "fix_flow": {

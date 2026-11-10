@@ -57,12 +57,12 @@ GROUPS = [
 ]
 
 
-def _mock_board(aioclient_mock, *, add_room_status: int = 200) -> None:
+def _mock_board(aioclient_mock, *, add_room_status: int = 200, rooms: list | None = None) -> None:
     aioclient_mock.get(DISCOVERY_URL, json=DISCOVERY_PAYLOAD)
     aioclient_mock.put(LOGIN_URL, json={"success": True, "apiKey": "0123456789"})
     aioclient_mock.get(f"{API_URL}/shades", json=SHADES)
     aioclient_mock.get(f"{API_URL}/groups", json=GROUPS)
-    aioclient_mock.get(f"{API_URL}/rooms", json=ROOMS)
+    aioclient_mock.get(f"{API_URL}/rooms", json=ROOMS if rooms is None else rooms)
     if add_room_status == 200:
         aioclient_mock.put(f"{CONFIG_URL}/addRoom", json={"roomId": 2, "name": "Bureau"})
     else:
@@ -115,6 +115,19 @@ def test_room_name_for_board() -> None:
     """Area names are cut to what the board stores, without commas."""
     assert room_name_for_board(" Salon, côté jardin ") == "Salon  côté jardin"
     assert len(room_name_for_board("A" * 40)) == 20
+
+
+def test_room_name_for_board_counts_bytes() -> None:
+    """The limit is 20 UTF-8 bytes, and a cut never splits a character."""
+    # 20 characters, 21 bytes: the board could not store the last letter.
+    assert room_name_for_board("Chambre d'amis étage") == "Chambre d'amis étag"
+    # The 20-byte limit falls inside the second byte of "é": drop the whole letter.
+    name = room_name_for_board("Salle de bain d'été" + "x")
+    assert name == "Salle de bain d'ét"
+    for sample in ("Chambre d'amis étage", "Salle de bain d'étéx", "éééééééééééé", "Séjour"):
+        cut = room_name_for_board(sample)
+        assert len(cut.encode("utf-8")) <= 20
+        assert sample.startswith(cut)
 
 
 async def test_board_rooms_and_groups_reach_home_assistant(
@@ -179,6 +192,39 @@ async def test_room_limit_raises_a_repair(hass: HomeAssistant, aioclient_mock) -
 
     assert ir.async_get(hass).async_get_issue(DOMAIN, LIMIT_ISSUE) is not None
     assert not _puts(aioclient_mock, "/saveShade")
+
+
+# "Chambre enfant étage 1" and "... 2" are both cut to these 20 bytes by the board.
+CUT_ROOM = "Chambre enfant étag"
+
+
+async def test_cut_room_name_links_the_long_area(hass: HomeAssistant, aioclient_mock) -> None:
+    """A room whose name the board cut is linked to its area, not duplicated."""
+    _mock_board(aioclient_mock, rooms=[*ROOMS, {"roomId": 2, "name": CUT_ROOM}])
+    areas = ar.async_get(hass)
+    long_area = areas.async_create("Chambre enfant étage 1")
+    await _setup(hass, _entry(hass))
+
+    assert areas.async_get_area_by_name(CUT_ROOM) is None
+    assert areas.async_get(long_area.id).name == "Chambre enfant étage 1"
+
+
+async def test_areas_cut_to_the_same_room_name_raise_a_repair(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    """Two areas equal within 20 bytes never share a room: a repair asks instead."""
+    _mock_board(aioclient_mock, rooms=[*ROOMS, {"roomId": 2, "name": CUT_ROOM}])
+    areas = ar.async_get(hass)
+    areas.async_create("Chambre enfant étage 1")
+    await _setup(hass, _entry(hass))
+
+    second = areas.async_create("Chambre enfant étage 2")
+    dr.async_get(hass).async_update_device(_shade_device(hass, 2).id, area_id=second.id)
+    await hass.async_block_till_done()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"room_name_clash_{UID}_{second.id}") is not None
+    assert not _puts(aioclient_mock, "/addRoom")
+    assert {"shadeId": 2, "roomId": 2} not in [_body(c) for c in _puts(aioclient_mock, "/saveShade")]
 
 
 async def _setup_with_conflict(hass: HomeAssistant, aioclient_mock) -> MockConfigEntry:
