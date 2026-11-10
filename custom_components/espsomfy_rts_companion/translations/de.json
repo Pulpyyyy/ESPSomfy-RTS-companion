@@ -340,6 +340,10 @@
       "title": "Keine freien Räume auf {device}",
       "description": "Der Bereich **{area}** konnte nicht als Raum auf {device} angelegt werden: Die Platine hat bereits das Maximum von 16 Räumen. Lösche einen Raum auf der Platine oder verschiebe den Rollladen in einen Bereich, der schon seinen Raum hat."
     },
+    "room_name_clash": {
+      "title": "Zwei Bereiche ergeben denselben Raumnamen auf {device}",
+      "description": "Die Bereiche **{area}** und **{other}** werden auf {device} beide zum Raum **{room}**, denn die Platine speichert 20 Bytes pro Name (ein Umlaut zählt doppelt). Die Rollläden von **{area}** wurden auf der Platine nicht verschoben. Benenne einen der beiden Bereiche um, damit sie sich in den ersten 20 Bytes unterscheiden."
+    },
     "organization_conflict": {
       "title": "Räume unterscheiden sich zwischen {device} und Home Assistant",
       "fix_flow": {

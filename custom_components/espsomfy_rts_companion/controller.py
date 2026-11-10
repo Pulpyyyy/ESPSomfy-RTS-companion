@@ -884,8 +884,12 @@ class ESPSomfyAPI:
         The board reboots itself when it succeeds, so there is no state to read
         back here: a 200 is the acknowledgement.
         """
-        url = f"{self._api_url}{API_RESTORE}"
+        # The restore upload lives on the web port only (the 8081 API has no
+        # /restore route), and that handler reads the options from a multipart
+        # field, not from the query string.
+        url = f"{self._config_url}{API_RESTORE}"
         form = aiohttp.FormData()
+        form.add_field("data", json.dumps(options))
         form.add_field(
             "file", content, filename="restore.backup",
             content_type="application/octet-stream",
@@ -893,7 +897,6 @@ class ESPSomfyAPI:
         try:
             async with self._session.post(
                 url,
-                params={"data": json.dumps(options)},
                 data=form,
                 headers=self._headers,
             ) as resp:

@@ -340,6 +340,10 @@
       "title": "No quedan estancias libres en {device}",
       "description": "El área **{area}** no se pudo añadir como estancia en {device}: la placa ya tiene su máximo de 16 estancias. Borra una estancia en la placa o devuelve la persiana a un área que ya tenga su estancia."
     },
+    "room_name_clash": {
+      "title": "Dos áreas dan el mismo nombre de estancia en {device}",
+      "description": "Las áreas **{area}** y **{other}** se convierten ambas en la estancia **{room}** en {device}, que guarda 20 bytes por nombre (una letra con tilde cuenta doble). Las persianas de **{area}** no se han movido en la placa. Cambia el nombre de una de las dos áreas para que se distingan en sus primeros 20 bytes."
+    },
     "organization_conflict": {
       "title": "Las estancias difieren entre {device} y Home Assistant",
       "fix_flow": {

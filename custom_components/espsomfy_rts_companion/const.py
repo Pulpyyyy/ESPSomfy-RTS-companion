@@ -54,7 +54,7 @@ CONF_MAX_BACKUPS = "max_backups"
 # Rooms <-> areas and groups -> labels (see organization.py).
 CONF_SYNC_ORGANIZATION = "sync_organization"
 DEFAULT_SYNC_ORGANIZATION = True
-# Longest room name the board stores.
+# Longest room name the board stores, in UTF-8 bytes (not characters).
 ROOM_NAME_MAX = 20
 DEFAULT_MAX_BACKUPS = 5
 MIN_BACKUPS = 1
