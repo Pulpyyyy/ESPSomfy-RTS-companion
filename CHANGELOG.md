@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.4.1
+
+### Fixed
+- **Restoring a backup from Home Assistant works.** The restore service sent
+  the backup to the board's API port, which has no restore route, so it
+  always failed. It now uses the web port and passes the chosen sections
+  where the firmware reads them (passed the old way, only the shades would
+  have been restored). Works with every firmware since v4.0.0.
+- **Accented area names no longer multiply rooms on the board.** The board
+  keeps 20 bytes per room name and an accented letter takes two. Names are
+  now cut to that, on a whole letter, so the sync finds its room again
+  instead of creating a new one each time, and no longer renames the area
+  after the board's shorter name.
+- **Two areas that only differ after their first 20 bytes no longer share a
+  room**, which moved the shades of one into the other: a repair asks to
+  rename one of them.
+
 ## 4.4.0
 
 ### Changed
