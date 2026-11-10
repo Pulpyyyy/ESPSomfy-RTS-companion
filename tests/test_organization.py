@@ -206,7 +206,7 @@ async def test_cut_room_name_links_the_long_area(hass: HomeAssistant, aioclient_
     await _setup(hass, _entry(hass))
 
     assert areas.async_get_area_by_name(CUT_ROOM) is None
-    assert areas.async_get(long_area.id).name == "Chambre enfant étage 1"
+    assert areas.async_get_area(long_area.id).name == "Chambre enfant étage 1"
 
 
 async def test_areas_cut_to_the_same_room_name_raise_a_repair(
