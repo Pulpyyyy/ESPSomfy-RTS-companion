@@ -26,7 +26,17 @@ from custom_components.espsomfy_rts_companion.controller import (
 from .conftest import API_URL, DISCOVERY_PAYLOAD, DISCOVERY_URL, HOST, LOGIN_URL, SERVER_ID
 
 UID = f"espsomfy_{SERVER_ID}"
-RESTORE_URL = f"{API_URL}/restore"
+# Restore goes to the web port: the 8081 API has no /restore route.
+RESTORE_URL = f"http://{HOST}/restore"
+
+
+def _sent_options(call) -> dict:
+    """Restore options carried by the multipart "data" field of a mocked POST."""
+    form = call[2]
+    for type_options, _headers, value in form._fields:
+        if type_options.get("name") == "data":
+            return json.loads(value)
+    raise AssertionError("no data field in the restore form")
 
 
 @pytest.fixture
@@ -95,7 +105,7 @@ async def test_restore_sends_the_newest_backup_with_the_chosen_sections(
     posts = [c for c in aioclient_mock.mock_calls if str(c[1]).split("?")[0] == RESTORE_URL]
     assert len(posts) == 1
     # Sections: default is shades only, all others false.
-    sent = json.loads(str(posts[0][1].query["data"]))
+    sent = _sent_options(posts[0])
     assert sent == {
         "shades": True, "settings": False, "network": False,
         "transceiver": False, "repeaters": False, "mqtt": False,
@@ -113,7 +123,7 @@ async def test_restore_honours_explicit_sections_and_file(
     await _restore(hass, sections=["shades", "mqtt"], backup="chosen.backup")
 
     posts = [c for c in aioclient_mock.mock_calls if str(c[1]).split("?")[0] == RESTORE_URL]
-    sent = json.loads(str(posts[0][1].query["data"]))
+    sent = _sent_options(posts[0])
     assert sent["shades"] is True and sent["mqtt"] is True
     assert sent["network"] is False
 
