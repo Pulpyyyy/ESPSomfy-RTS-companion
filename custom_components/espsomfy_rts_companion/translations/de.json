@@ -99,6 +99,9 @@
       },
       "backup": {
         "name": "Sicherung erstellen"
+      },
+      "my_position": {
+        "name": "Lieblingsposition anfahren"
       }
     },
     "update": {
@@ -175,6 +178,27 @@
             }
           }
         }
+      },
+      "last_boot": {
+        "name": "Letzter Start",
+        "state_attributes": {
+          "reset_reason": {
+            "name": "Grund des Neustarts",
+            "state": {
+              "poweron": "Einschalten",
+              "external": "Reset-Taste",
+              "software": "Neustart",
+              "panic": "Absturz",
+              "int_wdt": "Watchdog (Interrupt)",
+              "task_wdt": "Watchdog (Task)",
+              "wdt": "Watchdog",
+              "deepsleep": "Aufwachen aus dem Tiefschlaf",
+              "brownout": "Spannungseinbruch",
+              "sdio": "SDIO",
+              "unknown": "Unbekannt"
+            }
+          }
+        }
       }
     },
     "switch": {
@@ -187,7 +211,41 @@
     },
     "event": {
       "remote": {
-        "name": "Fernbedienung {slot}"
+        "name": "Fernbedienung",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "down": "Ab",
+              "down_long": "Ab lang gedrückt",
+              "down_short": "Ab kurz gedrückt",
+              "favorite": "Favorit",
+              "flag": "Sonnenmodus aus",
+              "my": "My",
+              "my_down": "My + Ab",
+              "my_long": "My lang gedrückt",
+              "my_short": "My kurz gedrückt",
+              "my_up": "My + Auf",
+              "my_up_down": "My + Auf + Ab",
+              "prog": "Prog",
+              "sensor": "Sensor",
+              "step_down": "Schritt ab",
+              "step_up": "Schritt auf",
+              "stop": "Stopp",
+              "sun_flag": "Sonnenmodus an",
+              "toggle": "Umschalten",
+              "unknown": "Unbekannt",
+              "up": "Auf",
+              "up_down": "Auf + Ab",
+              "up_long": "Auf lang gedrückt",
+              "up_short": "Auf kurz gedrückt"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "my_position": {
+        "name": "Lieblingsposition"
       }
     }
   },
@@ -384,6 +442,18 @@
     "firmware_outdated": {
       "title": "Firmware {version} auf {device}",
       "description": "{device} läuft mit Firmware {version}. ESPSomfy-RTS Companion ist für die Firmware ESPSomfy-RTS v4 gemacht: Befehle in einer Warteschlange und als ein durchgehender Zug gesendet, Hören vor dem Senden, Funkdiagnose, Updates von GitHub. Installiere sie über den Link unten im Browser, nach einer Sicherung der Platine."
+    },
+    "group_mixed": {
+      "title": "Die Gruppe {group} bewegt auch ein Tor oder ein Garagentor",
+      "description": "Die Gruppe **{group}** von {device} enthält Rollläden zusammen mit einem Tor oder einem Garagentor: ein Befehl bewegt sie alle. Home Assistant behandelt daher die ganze Gruppe als Tor oder Garagentor, und Sprachassistenten fragen vor dem Öffnen nach einer Bestätigung. Wenn das nicht gewollt ist, entfernen Sie das Tor oder Garagentor auf der Platine aus der Gruppe."
+    },
+    "mqtt_duplicates": {
+      "title": "{device} veröffentlicht seine Rollläden auch über MQTT",
+      "description": "Die MQTT-Discovery der Platine ist aktiv, daher zeigt Home Assistant jeden Rollladen doppelt: einmal von dieser Integration und einmal von MQTT. Deaktivieren Sie \"Discovery veröffentlichen\" auf der MQTT-Seite der Platine ({url}) und löschen Sie dann die doppelten MQTT-Geräte."
+    },
+    "unexpected_restart": {
+      "title": "{device} hat sich von selbst neu gestartet",
+      "description": "Die Platine ist um {time} nach einem Absturz gestartet (Grund: {reason}). Falls das wieder passiert, notieren Sie, was in dem Moment geschah, und eröffnen Sie ein Issue mit den Diagnosedaten dieser Integration. Ignorieren Sie diese Reparatur, sobald Sie sie gelesen haben."
     }
   },
   "selector": {
@@ -401,17 +471,52 @@
       "options": {
         "remote": "Eine Fernbedienung",
         "group": "Eine Gruppe",
-        "internal": "Home Assistant oder das Gerät"
+        "internal": "Die Platine selbst (Webseite, MQTT)",
+        "home_assistant": "Home Assistant"
+      }
+    },
+    "command": {
+      "options": {
+        "up": "Auf",
+        "down": "Ab",
+        "my": "My",
+        "stop": "Stopp",
+        "my_up": "My + Auf",
+        "my_down": "My + Ab",
+        "up_down": "Auf + Ab",
+        "my_up_down": "My + Auf + Ab",
+        "step_up": "Schritt auf",
+        "step_down": "Schritt ab",
+        "prog": "Prog",
+        "sun_flag": "Sonnenmodus an",
+        "flag": "Sonnenmodus aus",
+        "toggle": "Umschalten",
+        "favorite": "Favorit",
+        "sensor": "Sensor"
       }
     }
   },
   "device_automation": {
     "trigger_type": {
-      "command_received": "{entity_name} hat einen Befehl empfangen"
+      "command_received": "{entity_name} hat einen Befehl empfangen",
+      "up": "Auf gedrückt",
+      "down": "Ab gedrückt",
+      "my": "My gedrückt",
+      "my_up": "My + Auf gedrückt",
+      "my_down": "My + Ab gedrückt",
+      "up_down": "Auf + Ab gedrückt",
+      "prog": "Prog gedrückt",
+      "up_short": "Auf kurz gedrückt",
+      "up_long": "Auf lang gedrückt",
+      "down_short": "Ab kurz gedrückt",
+      "down_long": "Ab lang gedrückt",
+      "my_short": "My kurz gedrückt",
+      "my_long": "My lang gedrückt"
     },
     "extra_fields": {
       "source": "Quelle",
-      "remote_address": "Fernbedienungsadresse"
+      "remote_address": "Fernbedienungsadresse",
+      "command": "Befehl"
     }
   },
   "triggers": {
@@ -421,12 +526,49 @@
       "fields": {
         "source": {
           "name": "Quelle",
-          "description": "Nur bei Befehlen aus dieser Quelle starten."
+          "description": "Nur bei Befehlen aus dieser Quelle starten. Home Assistant: ein Befehl dieser Integration; die Platine selbst: ihre Webseite oder MQTT."
         },
         "remote_address": {
           "name": "Fernbedienungsadresse",
           "description": "Nur bei Befehlen von dieser Adresse starten (Fernbedienung oder Gruppe)."
+        },
+        "command": {
+          "name": "Befehl",
+          "description": "Nur bei diesem Befehl starten."
+        },
+        "once_per_press": {
+          "name": "Einmal pro Tastendruck",
+          "description": "Eine Fernbedienung für mehrere Rollläden meldet einen Tastendruck für jeden von ihnen: stattdessen einmal pro Tastendruck ausführen."
         }
+      }
+    }
+  },
+  "config_subentries": {
+    "remote": {
+      "initiate_flow": {
+        "user": "Fernbedienung hinzufügen"
+      },
+      "entry_type": "Fernbedienung",
+      "progress": {
+        "press_remote": "Drücken Sie nahe der Platine eine Taste der hinzuzufügenden Fernbedienung. Wartezeit 30 Sekunden."
+      },
+      "step": {
+        "not_heard": {
+          "title": "Keine neue Fernbedienung gehört",
+          "description": "Die Platine hat in 30 Sekunden keine neue Fernbedienung gehört. Prüfen Sie Reichweite und Batterie, dann absenden, um erneut zu lauschen. Eine Fernbedienung, die auf der Platine schon mit einem Rollladen verknüpft ist, hat bereits ihr Gerät und wird hier nicht angeboten."
+        },
+        "name": {
+          "title": "Fernbedienung benennen",
+          "description": "Fernbedienung {address} gehört. Geben Sie ihr einen Namen: Sie wird ein Gerät in Home Assistant, mit einem Auslöser pro Taste.",
+          "data": {
+            "name": "Name"
+          }
+        }
+      },
+      "abort": {
+        "not_loaded": "Die Platine ist nicht geladen, bitte erneut versuchen, sobald sie verbunden ist.",
+        "firmware_too_old": "Das Hinzufügen einer Fernbedienung erfordert Firmware 4.3 oder neuer auf der Platine.",
+        "already_configured": "Diese Fernbedienung ist bereits hinzugefügt."
       }
     }
   }

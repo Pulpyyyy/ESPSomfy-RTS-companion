@@ -191,9 +191,13 @@ class ESPSomfyRTSUpdateEntity(ESPSomfyEntity, UpdateEntity):
         return await self._controller.fetch_release_notes(version)
 
     async def async_update(self) -> None:
-        """Update the entity state.
+        """Ask the board to look for a new release now.
 
-        Overridden to prevent Home Assistant from polling the coordinator
-        and triggering a NotImplementedError.
+        Never polled (should_poll is False): Home Assistant only calls this for
+        "Check for updates" in Settings > Updates, or the update_entity action.
+        The board otherwise checks once a day. Its answer comes back as a
+        fwStatus event, which rewrites the state.
         """
-        pass
+        if not self._controller.check_for_update or not self._available:
+            return
+        await self._controller.api.check_releases()

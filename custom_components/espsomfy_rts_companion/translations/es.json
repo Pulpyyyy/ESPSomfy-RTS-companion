@@ -99,6 +99,9 @@
       },
       "backup": {
         "name": "Copia de seguridad"
+      },
+      "my_position": {
+        "name": "Ir a la posición favorita"
       }
     },
     "update": {
@@ -175,6 +178,27 @@
             }
           }
         }
+      },
+      "last_boot": {
+        "name": "Último arranque",
+        "state_attributes": {
+          "reset_reason": {
+            "name": "Motivo del reinicio",
+            "state": {
+              "poweron": "Encendido",
+              "external": "Botón de reinicio",
+              "software": "Reinicio",
+              "panic": "Fallo",
+              "int_wdt": "Watchdog (interrupción)",
+              "task_wdt": "Watchdog (tarea)",
+              "wdt": "Watchdog",
+              "deepsleep": "Salida del sueño profundo",
+              "brownout": "Caída de tensión",
+              "sdio": "SDIO",
+              "unknown": "Desconocido"
+            }
+          }
+        }
       }
     },
     "switch": {
@@ -187,7 +211,41 @@
     },
     "event": {
       "remote": {
-        "name": "Mando {slot}"
+        "name": "Mando",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "down": "Bajar",
+              "down_long": "Bajar: pulsación larga",
+              "down_short": "Bajar: pulsación corta",
+              "favorite": "Favorito",
+              "flag": "Modo sol desactivado",
+              "my": "My",
+              "my_down": "My + Bajar",
+              "my_long": "My: pulsación larga",
+              "my_short": "My: pulsación corta",
+              "my_up": "My + Subir",
+              "my_up_down": "My + Subir + Bajar",
+              "prog": "Prog",
+              "sensor": "Sensor",
+              "step_down": "Paso abajo",
+              "step_up": "Paso arriba",
+              "stop": "Parar",
+              "sun_flag": "Modo sol activado",
+              "toggle": "Alternar",
+              "unknown": "Desconocido",
+              "up": "Subir",
+              "up_down": "Subir + Bajar",
+              "up_long": "Subir: pulsación larga",
+              "up_short": "Subir: pulsación corta"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "my_position": {
+        "name": "Posición favorita"
       }
     }
   },
@@ -384,6 +442,18 @@
     "firmware_outdated": {
       "title": "Firmware {version} en {device}",
       "description": "{device} ejecuta el firmware {version}. ESPSomfy-RTS Companion está hecho para el firmware ESPSomfy-RTS v4: órdenes en cola enviadas en un tren continuo, escucha antes de emitir, diagnóstico de radio, actualizaciones desde GitHub. Instálalo desde tu navegador con el enlace de abajo, tras una copia de seguridad de la placa."
+    },
+    "group_mixed": {
+      "title": "El grupo {group} también mueve un portón o una puerta de garaje",
+      "description": "El grupo **{group}** de {device} reúne persianas con un portón o una puerta de garaje: una sola orden los mueve todos. Home Assistant trata por tanto todo el grupo como un portón o una puerta de garaje, y los asistentes de voz piden confirmación antes de abrirlo. Si no es lo que quieres, quita el portón o la puerta de garaje del grupo en la placa."
+    },
+    "mqtt_duplicates": {
+      "title": "{device} también publica sus persianas por MQTT",
+      "description": "El descubrimiento MQTT de la placa está activo, así que Home Assistant muestra cada persiana dos veces: una por esta integración y otra por MQTT. Desactive \"Publicar descubrimiento\" en la página MQTT de la placa ({url}) y borre los dispositivos MQTT duplicados."
+    },
+    "unexpected_restart": {
+      "title": "{device} se reinició por sí sola",
+      "description": "La placa arrancó a las {time} tras un fallo (motivo: {reason}). Si vuelve a ocurrir, anote lo que pasaba en ese momento y abra una incidencia con los diagnósticos de esta integración. Ignore esta reparación una vez leída."
     }
   },
   "selector": {
@@ -401,17 +471,52 @@
       "options": {
         "remote": "Un mando físico",
         "group": "Un grupo",
-        "internal": "Home Assistant o el dispositivo"
+        "internal": "La propia placa (página web, MQTT)",
+        "home_assistant": "Home Assistant"
+      }
+    },
+    "command": {
+      "options": {
+        "up": "Subir",
+        "down": "Bajar",
+        "my": "My",
+        "stop": "Parar",
+        "my_up": "My + Subir",
+        "my_down": "My + Bajar",
+        "up_down": "Subir + Bajar",
+        "my_up_down": "My + Subir + Bajar",
+        "step_up": "Paso arriba",
+        "step_down": "Paso abajo",
+        "prog": "Prog",
+        "sun_flag": "Modo sol activado",
+        "flag": "Modo sol desactivado",
+        "toggle": "Alternar",
+        "favorite": "Favorito",
+        "sensor": "Sensor"
       }
     }
   },
   "device_automation": {
     "trigger_type": {
-      "command_received": "{entity_name} ha recibido una orden"
+      "command_received": "{entity_name} ha recibido una orden",
+      "up": "Subir pulsado",
+      "down": "Bajar pulsado",
+      "my": "My pulsado",
+      "my_up": "My + Subir pulsado",
+      "my_down": "My + Bajar pulsado",
+      "up_down": "Subir + Bajar pulsado",
+      "prog": "Prog pulsado",
+      "up_short": "Subir: pulsación corta",
+      "up_long": "Subir: pulsación larga",
+      "down_short": "Bajar: pulsación corta",
+      "down_long": "Bajar: pulsación larga",
+      "my_short": "My: pulsación corta",
+      "my_long": "My: pulsación larga"
     },
     "extra_fields": {
       "source": "Fuente",
-      "remote_address": "Dirección del mando"
+      "remote_address": "Dirección del mando",
+      "command": "Comando"
     }
   },
   "triggers": {
@@ -421,12 +526,49 @@
       "fields": {
         "source": {
           "name": "Fuente",
-          "description": "Empezar solo con órdenes de esta fuente."
+          "description": "Solo iniciar con comandos de este origen. Home Assistant: un comando enviado por esta integración; la propia placa: su página web o MQTT."
         },
         "remote_address": {
           "name": "Dirección del mando",
           "description": "Empezar solo con órdenes de esta dirección (mando dedicado o grupo)."
+        },
+        "command": {
+          "name": "Comando",
+          "description": "Solo iniciar con este comando."
+        },
+        "once_per_press": {
+          "name": "Una vez por pulsación",
+          "description": "Un mando que controla varias persianas informa una pulsación por cada una: ejecutar una sola vez por pulsación."
         }
+      }
+    }
+  },
+  "config_subentries": {
+    "remote": {
+      "initiate_flow": {
+        "user": "Añadir mando"
+      },
+      "entry_type": "Mando",
+      "progress": {
+        "press_remote": "Pulse un botón del mando que quiere añadir, cerca de la placa. Espera de 30 segundos."
+      },
+      "step": {
+        "not_heard": {
+          "title": "Ningún mando nuevo oído",
+          "description": "La placa no oyó ningún mando nuevo en 30 segundos. Compruebe que está al alcance y que su pila funciona, y envíe para escuchar de nuevo. Un mando ya vinculado a una persiana en la placa ya tiene su dispositivo y no se ofrece aquí."
+        },
+        "name": {
+          "title": "Nombrar el mando",
+          "description": "Mando {address} oído. Dele un nombre: se convierte en un dispositivo de Home Assistant, con un desencadenante por botón.",
+          "data": {
+            "name": "Nombre"
+          }
+        }
+      },
+      "abort": {
+        "not_loaded": "La placa no está cargada, inténtelo de nuevo cuando esté conectada.",
+        "firmware_too_old": "Añadir un mando requiere el firmware 4.3 o posterior en la placa.",
+        "already_configured": "Este mando ya está añadido."
       }
     }
   }

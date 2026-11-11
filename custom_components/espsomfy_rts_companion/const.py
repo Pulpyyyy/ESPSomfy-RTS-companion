@@ -40,10 +40,14 @@ EVT_UPDPROGRESS = "updateProgress"
 EVT_WIFISTRENGTH = "wifiStrength"
 EVT_ETHERNET = "ethernet"
 EVT_MEMSTATUS = "memStatus"
+# A button press or release of any remote the board hears (socket room 1).
+EVT_REMOTEHEARD = "remoteHeard"
 # Internal events broadcast by the controller itself, never sent by the
 # firmware (the websocket filter would drop them anyway).
 EVT_HTTPPROBE = "httpProbe"
 EVT_BACKUPDONE = "backupDone"
+# The board answered /discovery again (boot time, reset reason, MQTT discovery).
+EVT_BOARDINFO = "boardInfo"
 # Published by the integration itself after reading the radio statistics.
 EVT_RADIOHEALTH = "radioHealth"
 
@@ -65,6 +69,7 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.COVER,
     Platform.EVENT,
+    Platform.NUMBER,
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.UPDATE,
@@ -83,3 +88,44 @@ REMOTE_NAME_PREFIX = {
     "de": "Fernbedienung",
     "es": "Mando",
 }
+
+# Socket room of the button presses (ROOM_EMIT_REMOTES on the firmware).
+SOCK_ROOM_REMOTES = 1
+# Bus event of a remote device, read by its device triggers.
+EVENT_REMOTE = f"{DOMAIN}_remote"
+# Subentry type of a remote adopted from Home Assistant (not linked to a shade).
+SUBENTRY_REMOTE = "remote"
+CONF_ADDRESS = "address"
+
+# Commands the board reports (translateSomfyCommand), normalized to the values
+# the event entities and the trigger filters use.
+COMMANDS = {
+    "Up": "up",
+    "Down": "down",
+    "My": "my",
+    "My+Up": "my_up",
+    "Up+Down": "up_down",
+    "My+Down": "my_down",
+    "My+Up+Down": "my_up_down",
+    "Prog": "prog",
+    "Sun Flag": "sun_flag",
+    "Flag": "flag",
+    "Step Up": "step_up",
+    "Step Down": "step_down",
+    "Sensor": "sensor",
+    "Toggle": "toggle",
+    "Favorite": "favorite",
+    "Stop": "stop",
+}
+# Buttons a hand holds down on purpose: they also report a short or a long press.
+HOLD_COMMANDS = ("up", "down", "my")
+# Held this long, a press is a long press.
+LONG_PRESS_SECONDS = 1.0
+
+# Where a command came from. "internal" is the board itself (its web page,
+# MQTT, a GPIO); "home_assistant" is a command this integration sent.
+SOURCE_HA = "home_assistant"
+COMMAND_SOURCES = ["remote", "group", "internal", SOURCE_HA]
+
+# Reset reasons that mean the board crashed rather than restarted on purpose.
+CRASH_RESET_REASONS = ("panic", "int_wdt", "task_wdt", "wdt")

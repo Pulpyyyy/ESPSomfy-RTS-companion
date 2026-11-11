@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 import contextlib
-from datetime import datetime
+from datetime import datetime, timedelta
 import glob
 import json
 import logging
 import os
+import time
 from typing import TYPE_CHECKING, Any
 
 import aiofiles
@@ -18,7 +19,7 @@ from packaging.version import parse as version_parse
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PIN, CONF_USERNAME
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     aiohttp_client,
@@ -29,6 +30,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
+from .board import async_check_board
 from .const import (
     API_BACKUP,
     API_DISCOVERY,
@@ -53,7 +55,9 @@ from .const import (
     EVT_GROUPREMOVED,
     EVT_GROUPSTATE,
     EVT_HTTPPROBE,
+    EVT_BOARDINFO,
     EVT_MEMSTATUS,
+    EVT_REMOTEHEARD,
     EVT_ROOMADDED,
     EVT_ROOMREMOVED,
     EVT_SHADEADDED,
@@ -62,6 +66,7 @@ from .const import (
     EVT_SHADESTATE,
     EVT_UPDPROGRESS,
     EVT_WIFISTRENGTH,
+    SOCK_ROOM_REMOTES,
 )
 
 if TYPE_CHECKING:
@@ -81,6 +86,13 @@ ORGANIZATION_REFRESH_PROBES = 5
 PROBE_TIMEOUT = 5
 # Seconds between a shade or group added on the board and the reload.
 RELOAD_DELAY = 5
+# A command Home Assistant sent shows up on the socket within this delay; a
+# shade it set moving stays Home Assistant's until it stops, plus this delay.
+OWN_COMMAND_WINDOW = 3.0
+# Longest travel a shade set moving by Home Assistant is credited to it.
+OWN_COMMAND_MAX_MOVE = 300.0
+# Two boot times closer than this are the same boot read twice.
+BOOT_TIME_TOLERANCE = timedelta(seconds=60)
 
 # The backup holds the WiFi passphrase in clear text, the device needs it to
 # restore itself, so both the directory and the files stay owner readable only.
@@ -166,6 +178,8 @@ class SocketListener:
         self.onerror = onerror
         self.connected = False
         self.filter: list[str] | None = None
+        # Text frames sent right after each connection (joining socket rooms).
+        self.greeting: Callable[[], list[str]] | None = None
         self.reconnects = 0
         self._task: asyncio.Task | None = None
         self._closing = False
@@ -203,6 +217,9 @@ class SocketListener:
                     self.connected = True
                     self.reconnects = 0
                     self.onopen()
+                    # Rooms are per connection: join them again on every one.
+                    for text in self.greeting() if self.greeting else []:
+                        await ws.send_str(text)
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
                             self._process_message(msg.data)
@@ -298,6 +315,92 @@ class ESPSomfyController(DataUpdateCoordinator):
         # Newest local backup, refreshed from disk at setup and after a backup.
         self.last_backup: datetime | None = None
         self.backup_count = 0
+        # shade id -> [deadline (monotonic), context, moving] of the commands
+        # Home Assistant sent, so their echo on the socket is credited to it.
+        self._own: dict[int, list[Any]] = {}
+        # Flows waiting for a press of a remote the board does not drive.
+        self._press_waiters: list[tuple[asyncio.Future, set[int]]] = []
+        # Registry id of the board's device, the parent of the shades, groups
+        # and remotes. Set by async_setup_entry before the platforms.
+        self.board_device_id: str | None = None
+
+    @callback
+    def note_own_command(self, shade_ids, context: Context | None) -> None:
+        """Remember that Home Assistant just sent a command to these shades."""
+        deadline = time.monotonic() + OWN_COMMAND_WINDOW
+        for shade_id in shade_ids:
+            self._own[int(shade_id)] = [deadline, context, False]
+
+    @callback
+    def own_command(self, shade_id) -> tuple[bool, Context | None]:
+        """Whether the latest command of a shade came from Home Assistant."""
+        entry = self._own.get(int(shade_id))
+        if entry is None:
+            return False, None
+        if not entry[2] and time.monotonic() > entry[0]:
+            del self._own[int(shade_id)]
+            return False, None
+        return True, entry[1]
+
+    @callback
+    def own_shade_moving(self, shade_id, moving: bool) -> None:
+        """Keep a shade Home Assistant set moving credited to it until it stops."""
+        entry = self._own.get(int(shade_id))
+        if entry is None:
+            return
+        now = time.monotonic()
+        if moving:
+            if now <= entry[0] or entry[2]:
+                entry[0] = max(entry[0], now + OWN_COMMAND_MAX_MOVE)
+                entry[2] = True
+        elif entry[2]:
+            entry[0] = now + OWN_COMMAND_WINDOW
+            entry[2] = False
+
+    @callback
+    def clear_own_command(self, shade_id) -> None:
+        """A remote took the shade over: what follows is no longer ours."""
+        self._own.pop(int(shade_id), None)
+
+    @callback
+    def async_listen_new_remote(self, ignore: set[int]) -> asyncio.Future:
+        """Listen, from now on, for a press of a remote no shade is linked to.
+
+        The future gets the address of the first one heard that is not in
+        ignore; cancelling it stops listening.
+        """
+        future: asyncio.Future = self.hass.loop.create_future()
+        waiter = (future, ignore)
+        self._press_waiters.append(waiter)
+
+        def _forget(_future: asyncio.Future) -> None:
+            with contextlib.suppress(ValueError):
+                self._press_waiters.remove(waiter)
+
+        future.add_done_callback(_forget)
+        return future
+
+    @callback
+    def _offer_press(self, data: dict[str, Any]) -> None:
+        """Hand a press of an unlinked remote to the flows waiting for one."""
+        if data.get("phase") != "press" or data.get("linked"):
+            return
+        address = int(data.get("address", 0) or 0)
+        if not address:
+            return
+        for future, ignore in list(self._press_waiters):
+            if address not in ignore and not future.done():
+                future.set_result(address)
+
+    async def async_refresh_board_info(self) -> None:
+        """Read /discovery again after a reconnection: the board may have restarted."""
+        try:
+            await self.api.discover()
+        except (aiohttp.ClientError, OSError, TimeoutError, DiscoveryError) as ex:
+            _LOGGER.debug("ESPSomfy-RTS discovery after reconnection failed: %s", ex)
+            return
+        async_check_board(self.hass, self)
+        self.async_set_updated_data(data={"event": EVT_BOARDINFO})
 
     @property
     def connectivity(self) -> bool | None:
@@ -394,9 +497,17 @@ class ESPSomfyController(DataUpdateCoordinator):
                 EVT_WIFISTRENGTH,
                 EVT_ETHERNET,
                 EVT_MEMSTATUS,
+                EVT_REMOTEHEARD,
             ]
         )
+        self.ws_listener.greeting = self._ws_greeting
         await self.ws_listener.connect()
+
+    def _ws_greeting(self) -> list[str]:
+        """Join the button press room when the board has one."""
+        if not self.api.remote_events:
+            return []
+        return [f"join:{SOCK_ROOM_REMOTES}:{self.api.apiKey or ''}"]
 
     def start_probe(self) -> None:
         """Start probing the HTTP API in the background.
@@ -564,6 +675,8 @@ class ESPSomfyController(DataUpdateCoordinator):
         # this will allow us to simply update the latest firmware
         if "event" in data and data["event"] == EVT_FWSTATUS:
             self.api.set_firmware(data)
+        if data.get("event") == EVT_REMOTEHEARD:
+            self._offer_press(data)
         if data.get("event") == EVT_SHADEREMOVED and "shadeId" in data:
             self._remove_device(f"shade_{self.unique_id}_{data['shadeId']}")
             if self.health is not None:
@@ -591,6 +704,11 @@ class ESPSomfyController(DataUpdateCoordinator):
         _LOGGER.debug("ESPSomfy-RTS Socket was opened")
         if self._ws_opened:
             self.ws_reconnects += 1
+            # A reconnection often follows a restart: read the boot time and
+            # the reset reason again.
+            self.config_entry.async_create_background_task(
+                self.hass, self.async_refresh_board_info(), "espsomfy_rts_board_info"
+            )
         self._ws_opened = True
         self.ws_connected = True
         # Coming back from an outage: check the API now rather than waiting
@@ -693,7 +811,7 @@ class ESPSomfyAPI:
     @property
     def apiKey(self) -> str:
         """Getter for the api key."""
-        return self._config["apiKey"]
+        return self._config.get("apiKey", "")
 
     @property
     def deviceName(self) -> str:
@@ -740,6 +858,26 @@ class ESPSomfyAPI:
         """Get the current host."""
         return self._host
 
+    @property
+    def remote_events(self) -> bool:
+        """Whether the board streams the button presses of every remote."""
+        return bool(self._config.get("remoteEvents", False))
+
+    @property
+    def mqtt_discovery(self) -> bool:
+        """Whether the board also publishes its shades to the MQTT discovery."""
+        return bool(self._config.get("mqttDisco", False))
+
+    @property
+    def reset_reason(self) -> str | None:
+        """Why the board last started, as the firmware names it."""
+        return self._config.get("resetReason")
+
+    @property
+    def boot_time(self) -> datetime | None:
+        """When the board last started."""
+        return self._config.get("bootTime")
+
     def get_sock_url(self):
         """Get the socket interface url."""
         return self._sock_url
@@ -784,8 +922,8 @@ class ESPSomfyAPI:
         if cver != new_ver:
             # print(f"Version: {cver} to {new_ver}")
             dev_registry = dr.async_get(self.hass)
-            if dev := dev_registry.async_get_device(
-                identifiers={(DOMAIN, f"espsomfy_{self.server_id}")}
+            if dev := dev_registry.async_get_device_by_identifier(
+                (DOMAIN, f"espsomfy_{self.server_id}"), self._config_entry_id
             ):
                 dev_registry.async_update_device(dev.id, sw_version=new_ver)
         self._config["version"] = new_ver
@@ -961,6 +1099,19 @@ class ESPSomfyAPI:
             self._config["permissions"] = 1
         if "memory" in data:
             self._config["memory"] = data["memory"]
+        # Firmware 4.3: boot information, MQTT discovery and the press room.
+        self._config["remoteEvents"] = bool(data.get("remoteEvents", False))
+        self._config["mqttDisco"] = bool(data.get("mqttDisco", False))
+        if "resetReason" in data:
+            self._config["resetReason"] = str(data["resetReason"])
+        if "uptime" in data:
+            with contextlib.suppress(TypeError, ValueError):
+                boot = dt_util.utcnow() - timedelta(seconds=int(data["uptime"]))
+                previous = self._config.get("bootTime")
+                # The same boot read again moves by the request latency only:
+                # keep the first reading so the sensor does not change.
+                if previous is None or abs(boot - previous) > BOOT_TIME_TOLERANCE:
+                    self._config["bootTime"] = boot
         self._needsKey = False
         if self._config["authType"] > 0:
             if self._config["permissions"] != 1:
@@ -1055,6 +1206,41 @@ class ESPSomfyAPI:
                 if known.get("shadeId") == shade_id:
                     known["repeats"] = repeats
         return shade
+
+    async def check_releases(self) -> bool:
+        """Make the board fetch its releases from GitHub now.
+
+        The board then reports the latest version as a fwStatus event. It
+        refuses while a shade moves (503): the fetch blocks for seconds.
+        """
+        try:
+            async with self._session.get(
+                f"{self._config_url}/getReleases",
+                headers=self._headers,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status == 200:
+                    return True
+                _LOGGER.info(
+                    "ESPSomfy-RTS %s did not check for updates (%s): %s",
+                    self._deviceName,
+                    resp.status,
+                    (await resp.text())[:120],
+                )
+        except (aiohttp.ClientError, OSError, TimeoutError) as ex:
+            _LOGGER.info("ESPSomfy-RTS %s: update check failed: %s", self._deviceName, ex)
+        return False
+
+    async def set_my_position(self, shade_id: int, position: int) -> Any | None:
+        """Store a favorite position in the motor; the shade moves there first.
+
+        The position is in the scale the board displays. Asking for the
+        favorite the motor already holds clears it on the board, so callers
+        must not send the current value.
+        """
+        return await self._put_config(
+            "/setMyPosition", {"shadeId": shade_id, "pos": position}
+        )
 
     async def save_shade_room(self, shade_id: int, room_id: int) -> Any | None:
         """Move a shade to a room of the board."""

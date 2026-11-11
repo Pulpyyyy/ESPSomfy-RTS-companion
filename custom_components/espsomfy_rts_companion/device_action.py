@@ -49,23 +49,23 @@ async def async_get_actions(
     actions = await toggle_entity.async_get_actions(hass, device_id, DOMAIN)
     registry = er.async_get(hass)
     for entry in er.async_entries_for_device(registry, device_id):
-        # 🟢 CORRECTION : Détection basée sur la fin de l'entity_id suite au changement de norme de nommage
-        if entry.entity_id.startswith("button.") and entry.entity_id.endswith("_reboot"):
+        # The unique id, not the entity id: the entity id follows the language
+        # Home Assistant runs in (button.espsomfyrts_sauvegarder in French) and
+        # whatever the user renames it to.
+        if entry.domain != "button" or not entry.unique_id:
+            continue
+        action_type = None
+        if entry.unique_id.startswith("reboot_"):
+            action_type = "Reboot"
+        elif entry.unique_id.startswith("backup_"):
+            action_type = "Backup"
+        if action_type is not None:
             actions.append(
                 {
                     CONF_DEVICE_ID: device_id,
                     CONF_DOMAIN: DOMAIN,
                     CONF_ENTITY_ID: entry.entity_id,
-                    CONF_TYPE: "Reboot",
-                }
-            )
-        elif entry.entity_id.startswith("button.") and entry.entity_id.endswith("_backup"):
-            actions.append(
-                {
-                    CONF_DEVICE_ID: device_id,
-                    CONF_DOMAIN: DOMAIN,
-                    CONF_ENTITY_ID: entry.entity_id,
-                    CONF_TYPE: "Backup",
+                    CONF_TYPE: action_type,
                 }
             )
 

@@ -28,6 +28,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     DOMAIN,
     EVT_BACKUPDONE,
+    EVT_BOARDINFO,
     EVT_CONNECTED,
     EVT_ETHERNET,
     EVT_MEMSTATUS,
@@ -340,6 +341,9 @@ async def async_setup_entry(
                 ),
             )
         )
+        # Firmware 4.3 tells since when it runs and why it started.
+        if controller.api.boot_time is not None:
+            new_entities.append(ESPSomfyLastBootSensor(controller))
         health = controller.health
         if health is not None and health.supported:
             new_entities.append(ESPSomfyRadioSensor(controller, RADIO_NOISE))
@@ -492,6 +496,41 @@ class ESPSomfyLastBackupSensor(ESPSomfyEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         if self._controller.data.get("event") in self.events:
+            self.async_write_ha_state()
+
+
+class ESPSomfyLastBootSensor(ESPSomfyEntity, SensorEntity):
+    """When the board last started, and why.
+
+    Read from /discovery at setup and after each reconnection, never polled:
+    the value only changes when the board restarts.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "last_boot"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:restart-alert"
+
+    def __init__(self, controller: ESPSomfyController) -> None:
+        """Initialize the last start sensor of the board."""
+        super().__init__(data=None, controller=controller)
+        self._controller = controller
+        self._attr_unique_id = f"last_boot_{controller.unique_id}"
+
+    @property
+    def native_value(self) -> Any:
+        """Time the board last started."""
+        return self._controller.api.boot_time
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Why the board started (power on, restart, crash, watchdog...)."""
+        return {"reset_reason": self._controller.api.reset_reason}
+
+    def _handle_coordinator_update(self) -> None:
+        """Rewrite the state when /discovery was read again."""
+        if self._controller.data.get("event") == EVT_BOARDINFO:
             self.async_write_ha_state()
 
 

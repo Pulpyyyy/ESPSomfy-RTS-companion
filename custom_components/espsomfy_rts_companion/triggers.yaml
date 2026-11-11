@@ -4,6 +4,27 @@ command_received:
       integration: espsomfy_rts_companion
       domain: cover
   fields:
+    command:
+      selector:
+        select:
+          translation_key: command
+          options:
+            - up
+            - down
+            - my
+            - stop
+            - my_up
+            - my_down
+            - up_down
+            - my_up_down
+            - step_up
+            - step_down
+            - prog
+            - sun_flag
+            - flag
+            - toggle
+            - favorite
+            - sensor
     source:
       selector:
         select:
@@ -12,8 +33,13 @@ command_received:
             - remote
             - group
             - internal
+            - home_assistant
     remote_address:
       selector:
         number:
           min: 0
           mode: box
+    once_per_press:
+      default: false
+      selector:
+        boolean:

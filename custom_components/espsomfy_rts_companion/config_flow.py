@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -23,6 +24,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util.network import is_host_valid
 
 from .const import (
+    CONF_ADDRESS,
     CONF_MAX_BACKUPS,
     CONF_SYNC_ORGANIZATION,
     DEFAULT_MAX_BACKUPS,
@@ -30,7 +32,11 @@ from .const import (
     DOMAIN,
     MAX_BACKUPS,
     MIN_BACKUPS,
+    SUBENTRY_REMOTE,
 )
+
+# Seconds the board listens for the remote to add.
+LEARN_TIMEOUT = 30
 
 # Settings kept in the entry options; everything else goes to the entry data.
 OPTION_KEYS = (CONF_MAX_BACKUPS, CONF_SYNC_ORGANIZATION)
@@ -256,6 +262,88 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.OptionsFlow:
         """Get the options flow for espsomfy_rts_companion."""
         return ESPSomfyOptionsFlowHandler(config_entry)
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: config_entries.ConfigEntry
+    ) -> dict[str, type[config_entries.ConfigSubentryFlow]]:
+        """A remote the board drives nothing with, adopted as a scene switch."""
+        return {SUBENTRY_REMOTE: RemoteSubentryFlow}
+
+
+class RemoteSubentryFlow(config_entries.ConfigSubentryFlow):
+    """Add a remote: press one of its buttons, then name it."""
+
+    def __init__(self) -> None:
+        """Initialize."""
+        self._listen: asyncio.Task | None = None
+        self._address: int | None = None
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Listen for a press of a remote neither linked nor added yet."""
+        entry = self._get_entry()
+        if entry.state is not config_entries.ConfigEntryState.LOADED:
+            return self.async_abort(reason="not_loaded")
+        controller: ESPSomfyController = entry.runtime_data
+        if not controller.api.remote_events:
+            return self.async_abort(reason="firmware_too_old")
+        if self._listen is None:
+            added = {
+                int(subentry.data[CONF_ADDRESS])
+                for subentry in entry.subentries.values()
+                if subentry.subentry_type == SUBENTRY_REMOTE
+            }
+            # Listening starts now, not when the task first runs: a press right
+            # after the dialog opened is not lost.
+            heard = controller.async_listen_new_remote(added)
+
+            async def _wait() -> int | None:
+                try:
+                    return await asyncio.wait_for(heard, LEARN_TIMEOUT)
+                except TimeoutError:
+                    return None
+
+            self._listen = self.hass.async_create_background_task(
+                _wait(), "espsomfy_rts_learn_remote"
+            )
+        if not self._listen.done():
+            return self.async_show_progress(
+                step_id="user",
+                progress_action="press_remote",
+                progress_task=self._listen,
+            )
+        self._address = self._listen.result()
+        self._listen = None
+        if self._address is None:
+            return self.async_show_progress_done(next_step_id="not_heard")
+        return self.async_show_progress_done(next_step_id="name")
+
+    async def async_step_not_heard(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Nothing heard: listen again on submit."""
+        if user_input is not None:
+            return await self.async_step_user()
+        return self.async_show_form(step_id="not_heard", data_schema=vol.Schema({}))
+
+    async def async_step_name(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Name the remote heard; it becomes a device."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title=user_input[CONF_NAME],
+                data={CONF_ADDRESS: self._address},
+                unique_id=str(self._address),
+            )
+        return self.async_show_form(
+            step_id="name",
+            data_schema=vol.Schema({vol.Required(CONF_NAME): str}),
+            description_placeholders={"address": str(self._address)},
+        )
 
 
 class ESPSomfyOptionsFlowHandler(config_entries.OptionsFlow):

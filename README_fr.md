@@ -57,7 +57,7 @@ Reprise à la main : si vous préférez ne pas utiliser l'étape de reprise, ref
 
 ## Fonctionnalités
 
-* **Contrôle complet** : ouvrir, fermer, arrêter et régler une position en pourcentage, inclinaison comprise, pour les volets et les groupes.
+* **Contrôle complet** : ouvrir, fermer, arrêter et régler une position en pourcentage, inclinaison comprise, pour les volets et les groupes. Un groupe prend la classe de ce qu'il fait bouger : s'il contient un portail ou une porte de garage, Home Assistant et les assistants vocaux le traitent comme tel, et une réparation prévient quand il contient aussi des volets.
 * **Toujours synchronisée** : les positions suivent la carte en temps réel, que l'ordre vienne de Home Assistant, d'une télécommande ou de l'interface de la carte.
 * **Pièces et groupes alignés** : les pièces de la carte sont des zones de Home Assistant, dans les deux sens. Déplacez un volet dans une autre zone, ou renommez une zone, et la carte suit ; changez une pièce sur la carte et Home Assistant suit. Quand un volet n'est pas dans la même pièce des deux côtés, rien n'est modifié : une réparation demande quel côté garder. Les groupes de la carte apparaissent comme étiquettes sur leurs volets. Désactivable dans les options de l'intégration.
 * **La carte en un clic** : la carte, chaque volet et chaque groupe renvoient à la page correspondante de l'interface web de la carte (**Visiter** sur la page de l'appareil).

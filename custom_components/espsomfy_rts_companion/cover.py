@@ -18,12 +18,13 @@ from homeassistant.components.cover import (
 from homeassistant.components.group.cover import CoverGroup
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
     entity_platform as ep,
     entity_registry as er,
+    issue_registry as ir,
 )
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.config_validation import make_entity_service_schema
@@ -39,6 +40,7 @@ from .const import (
     EVT_SHADEREMOVED,
     EVT_SHADESTATE,
     REMOTE_NAME_PREFIX,
+    SOURCE_HA,
 )
 from .controller import ESPSomfyController
 from .entity import ESPSomfyEntity
@@ -263,6 +265,53 @@ def _linked_shade_ids(data: Any) -> list[int] | None:
     return None
 
 
+# Device families of the board's shade types.
+_FAMILIES: Final = {
+    0: "shutter", 4: "shutter", 1: "blind", 2: "curtain", 7: "curtain", 8: "curtain",
+    3: "awning", 5: "garage", 6: "garage", 9: "contact", 10: "contact",
+    11: "gate", 12: "gate", 13: "gate", 14: "gate", 15: "gate", 16: "gate",
+}
+_COVERING_CLASSES: Final = {
+    "shutter": CoverDeviceClass.SHUTTER,
+    "blind": CoverDeviceClass.BLIND,
+    "curtain": CoverDeviceClass.CURTAIN,
+    "awning": CoverDeviceClass.AWNING,
+}
+ISSUE_GROUP_MIXED: Final = "group_mixed"
+
+
+def group_make_up(shades: list, shade_ids: list) -> dict[str, int]:
+    """How many members of each family a group holds."""
+    by_id = {int(shade.get("shadeId", -1)): shade for shade in shades}
+    make_up: dict[str, int] = {}
+    for shade_id in shade_ids:
+        shade = by_id.get(int(shade_id))
+        if shade is None:
+            continue
+        family = _FAMILIES.get(int(shade.get("shadeType", 0)), "shutter")
+        make_up[family] = make_up.get(family, 0) + 1
+    return make_up
+
+
+def group_device_class(make_up: dict[str, int]) -> CoverDeviceClass:
+    """The class a group shows to Home Assistant.
+
+    One command moves every member, so a group holding a gate or a garage door is
+    one: Home Assistant and the voice assistants then ask before opening it, as
+    they do for the device itself. Otherwise the most numerous covering wins.
+    """
+    if make_up.get("gate"):
+        return CoverDeviceClass.GATE
+    if make_up.get("garage"):
+        return CoverDeviceClass.GARAGE
+    order = list(_COVERING_CLASSES)
+    coverings = [family for family in order if make_up.get(family)]
+    if not coverings:
+        return CoverDeviceClass.SHADE
+    best = max(coverings, key=lambda family: (make_up[family], -order.index(family)))
+    return _COVERING_CLASSES[best]
+
+
 class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
     """A grpi[] that is associated with a controller."""
 
@@ -275,6 +324,7 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
         self._attr_available = True
         self._controller = controller
         self._group_id = data["groupId"]
+        self._group_name = data.get("name", "")
         self._attr_device_class = CoverDeviceClass.SHADE
         self._linked_shade_ids = _linked_shade_ids(data) or []
         self._flip_position = False
@@ -319,6 +369,35 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
             #    if entity.unique_id == f"{self._controller.unique_id}_{cover_id}":
             #        shade_ids.append(entity.entity_id)
         super().__init__(unique_id=uuid, name=data["name"], entities=shade_ids)
+        self._apply_make_up()
+
+    @callback
+    def _apply_make_up(self) -> None:
+        """Class, make-up attribute and mixed-group warning, from the members."""
+        make_up = group_make_up(self._controller.api.shades, self._linked_shade_ids)
+        self._attr_device_class = group_device_class(make_up)
+        self._attr_extra_state_attributes = {
+            **(self._attr_extra_state_attributes or {}),
+            "make_up": make_up,
+        }
+        issue_id = f"{ISSUE_GROUP_MIXED}_{self._controller.unique_id}_{self._group_id}"
+        moving = make_up.get("gate", 0) + make_up.get("garage", 0)
+        coverings = sum(make_up.get(family, 0) for family in _COVERING_CLASSES)
+        if moving and coverings:
+            ir.async_create_issue(
+                self._hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=ISSUE_GROUP_MIXED,
+                translation_placeholders={
+                    "group": self._group_name,
+                    "device": self._controller.device_name,
+                },
+            )
+        else:
+            ir.async_delete_issue(self._hass, DOMAIN, issue_id)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to device events."""
@@ -337,7 +416,12 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
                             self._entity_ids.append(entity.entity_id)
                     shade_ids.append(entity.entity_id)
         # self._entities = shade_ids
-        self._attr_extra_state_attributes = {ATTR_ENTITY_ID: shade_ids}
+        self._attr_extra_state_attributes = {
+            **(self._attr_extra_state_attributes or {}),
+            ATTR_ENTITY_ID: shade_ids,
+        }
+        # The shade list is loaded by now: refresh what the group is made of.
+        self._apply_make_up()
         await super().async_added_to_hass()
         self.async_on_remove(
             self.coordinator.async_add_listener(
@@ -362,6 +446,9 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
                 return
             if (shade_ids := _linked_shade_ids(self._controller.data)) is not None:
                 self._linked_shade_ids = shade_ids
+                self._apply_make_up()
+            if self._controller.data.get("name"):
+                self._group_name = self._controller.data["name"]
             self._attr_available = True
             self.async_write_ha_state()
 
@@ -374,6 +461,9 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
 
     async def _async_remove_group(self) -> None:
         """Drop the entity and the device of a group deleted on the firmware."""
+        ir.async_delete_issue(
+            self.hass, DOMAIN, f"{ISSUE_GROUP_MIXED}_{self._controller.unique_id}_{self._group_id}"
+        )
         entities = er.async_get(self.hass)
         if entities.async_get(self.entity_id) is None:
             await self.async_remove(force_remove=True)
@@ -394,6 +484,12 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
     def available(self) -> bool:
         """Indicates whether the shade is available."""
         return self._attr_available
+
+    @callback
+    def async_set_context(self, context: Context) -> None:
+        """A service call reaches the group: its members move for Home Assistant."""
+        super().async_set_context(context)
+        self._controller.note_own_command(self._linked_shade_ids, context)
 
     @property
     def icon(self) -> str:
@@ -490,7 +586,7 @@ def build_command_event(
     """
     source = attrs.get("cmd_source", "") or ""
     source_address = int(attrs.get("cmd_address", 0) or 0)
-    remote_type = source if source in ("remote", "group", "internal") else "unknown"
+    remote_type = source if source in ("remote", "group", "internal", SOURCE_HA) else "unknown"
 
     slot: int | None = None
     remote_linked = False
@@ -687,6 +783,10 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
         if "direction" in data and self._direction != data.get("direction", 0):
             self._direction = int(data["direction"])
             upd = True
+        if "direction" in data:
+            self._controller.own_shade_moving(
+                self._shade_id, int(data["direction"]) != 0
+            )
         if "target" in data and self._state_attributes.get("target", -1) != data.get(
             "target", 0
         ):
@@ -777,6 +877,17 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
     def _fire_command_event(self) -> None:
         """Build and fire the enriched command event for this shade."""
         self._state_attributes["cmd_fired"] = dt_util.as_timestamp(dt_util.utcnow())
+        context = None
+        if self._state_attributes.get("cmd_source") == "remote":
+            # Someone took the shade over by hand: what follows is theirs.
+            self._controller.clear_own_command(self._shade_id)
+        else:
+            own, context = self._controller.own_command(self._shade_id)
+            # The board reports its own commands as "internal", whoever asked.
+            # The ones Home Assistant sent carry its context, so the logbook
+            # and the automations know which automation or user moved it.
+            if own and self._state_attributes.get("cmd_source") == "internal":
+                self._state_attributes["cmd_source"] = SOURCE_HA
         self.hass.bus.async_fire(
             EVENT_SHADE_COMMAND,
             build_command_event(
@@ -787,7 +898,14 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
                 self.entity_id,
                 self._state_attributes,
             ),
+            context=context,
         )
+
+    @callback
+    def async_set_context(self, context: Context) -> None:
+        """A service call reaches this shade: what it sends is Home Assistant's."""
+        super().async_set_context(context)
+        self._controller.note_own_command([self._shade_id], context)
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
