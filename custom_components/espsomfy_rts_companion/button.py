@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 import logging
+from typing import Any
 
 from packaging.version import Version, parse as version_parse
 import voluptuous as vol
@@ -15,7 +16,7 @@ from homeassistant.components.button import (
     ButtonEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity import EntityCategory
@@ -29,6 +30,8 @@ from .entity import ESPSomfyEntity
 SVC_REBOOT = "reboot"
 SVC_BACKUP = "backup"
 SVC_RESTORE = "restore"
+# Single button garage doors and gates (toggle) and dry contacts: no My.
+NO_MY_SHADE_TYPES = (5, 9, 10, 14, 15, 16)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -86,6 +89,18 @@ async def async_setup_entry(
                 ),
             )
         )
+    # The My button of the remote, for dashboards and automations: no shade
+    # type that toggles on a single button or drives a dry contact has one.
+    new_entities.extend(
+        ESPSomfyMyButton(controller, shade, [int(shade["shadeId"])])
+        for shade in controller.api.shades
+        if "shadeId" in shade and int(shade.get("shadeType", 0)) not in NO_MY_SHADE_TYPES
+    )
+    new_entities.extend(
+        ESPSomfyMyButton(controller, group, _group_shade_ids(group))
+        for group in controller.api.groups
+        if "groupId" in group
+    )
     async_add_entities(new_entities)
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
@@ -203,4 +218,74 @@ class ESPSomfyButton(ESPSomfyEntity, ButtonEntity):
                 self._controller.data["connected"]
             ):
                 self._attr_available = bool(self._controller.data["connected"])
+                self.async_write_ha_state()
+
+
+def _group_shade_ids(group: dict[str, Any]) -> list[int]:
+    """The shades of a group, from the REST list of linked shade objects."""
+    ids: list[int] = []
+    for shade in group.get("linkedShades") or []:
+        if isinstance(shade, dict) and "shadeId" in shade:
+            ids.append(int(shade["shadeId"]))
+        elif isinstance(shade, int):
+            ids.append(shade)
+    return ids
+
+
+class ESPSomfyMyButton(ESPSomfyEntity, ButtonEntity):
+    """The My button of a shade or a group.
+
+    At rest the motor goes to its favorite position; moving, it stops, exactly
+    as the button of the remote does.
+    """
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "my_position"
+    _attr_icon = "mdi:star"
+
+    def __init__(
+        self,
+        controller: ESPSomfyController,
+        data: dict[str, Any],
+        shade_ids: list[int],
+    ) -> None:
+        """Initialize on the device of the shade or the group."""
+        super().__init__(controller=controller, data=data)
+        self._controller = controller
+        self._shade_ids = shade_ids
+        self._group_id = data.get("groupId")
+        if self._group_id is not None:
+            self._attr_unique_id = f"my_{controller.unique_id}_group_{self._group_id}"
+        else:
+            self._attr_unique_id = f"my_{controller.unique_id}_{data['shadeId']}"
+        self._attr_available = True
+
+    @property
+    def available(self) -> bool:
+        """Available while the board is connected."""
+        return self._attr_available
+
+    @callback
+    def async_set_context(self, context: Context) -> None:
+        """What the press moves, it moves for Home Assistant."""
+        super().async_set_context(context)
+        self._controller.note_own_command(self._shade_ids, context)
+
+    async def async_press(self) -> None:
+        """Send My."""
+        if self._group_id is not None:
+            await self._controller.api.group_command(
+                {"groupId": self._group_id, "command": "My"}
+            )
+        else:
+            await self._controller.api.shade_command(
+                {"shadeId": self._shade_ids[0], "command": "My"}
+            )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        data = self._controller.data
+        if data.get("event", "") == EVT_CONNECTED and "connected" in data:
+            if self._attr_available != bool(data["connected"]):
+                self._attr_available = bool(data["connected"])
                 self.async_write_ha_state()

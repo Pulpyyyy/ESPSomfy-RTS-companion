@@ -18,7 +18,17 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from .adopt import async_adopt_entry
-from .const import CONF_SYNC_ORGANIZATION, DEFAULT_SYNC_ORGANIZATION, DOMAIN, PLATFORMS
+from .board import async_check_board
+from .const import (
+    CONF_ADDRESS,
+    CONF_SYNC_ORGANIZATION,
+    DEFAULT_SYNC_ORGANIZATION,
+    DOMAIN,
+    MANUFACTURER,
+    PLATFORMS,
+    SUBENTRY_REMOTE,
+    VERSION,
+)
 from .controller import ESPSomfyAPI, ESPSomfyController, LoginError
 from .health import BoardHealth
 from .organization import OrganizationSync
@@ -93,6 +103,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) -> 
     controller.health = BoardHealth(hass, controller)
     await controller.health.async_try_refresh(reload=False)
 
+    # The board's device first: shades, groups and remotes hang under it by its
+    # registry id, which the platforms load concurrently could not count on.
+    board = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, controller.unique_id)},
+        name=controller.device_name,
+        manufacturer=MANUFACTURER,
+        model=f"ESPSomfy-RTS Companion {VERSION}",
+        sw_version=controller.version,
+        configuration_url=api.get_config_url(),
+    )
+    controller.board_device_id = board.id
+
     # 4. Les plateformes ne sont chargées qu'une fois le login réussi, sinon un
     #    échec après forward provoquait un double chargement au retry.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -101,6 +124,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ESPSomfyConfigEntry) -> 
     # must never look like a board without shades.
     if shades is not None and groups is not None:
         _async_remove_stale_devices(hass, entry, controller, shades, groups)
+    # MQTT duplicates and restarts after a crash, from the /discovery read above.
+    async_check_board(hass, controller)
 
     async def _async_ws_close(_: Event) -> None:
         await controller.ws_close()
@@ -171,6 +196,15 @@ def _board_ids(controller: ESPSomfyController, shades: list, groups: list) -> se
     ids = {uid}
     ids.update(f"shade_{uid}_{s['shadeId']}" for s in shades if "shadeId" in s)
     ids.update(f"group_{uid}_{g['groupId']}" for g in groups if "groupId" in g)
+    # Remotes: the ones linked to a shade, and the ones added from Home
+    # Assistant (removed with their subentry, never as stale).
+    for shade in shades:
+        for remote in shade.get("linkedRemotes") or []:
+            if address := int(remote.get("remoteAddress", 0) or 0):
+                ids.add(f"remote_{uid}_{address}")
+    for subentry in controller.config_entry.subentries.values():
+        if subentry.subentry_type == SUBENTRY_REMOTE:
+            ids.add(f"remote_{uid}_{int(subentry.data[CONF_ADDRESS])}")
     return ids
 
 
@@ -184,7 +218,11 @@ def _async_remove_stale_devices(
 ) -> None:
     """Drop the devices whose shade or group no longer exists on the board."""
     known = _board_ids(controller, shades, groups)
-    prefixes = (f"shade_{controller.unique_id}_", f"group_{controller.unique_id}_")
+    prefixes = (
+        f"shade_{controller.unique_id}_",
+        f"group_{controller.unique_id}_",
+        f"remote_{controller.unique_id}_",
+    )
     devices = dr.async_get(hass)
     for device in dr.async_entries_for_config_entry(devices, entry.entry_id):
         ours = {i for d, i in device.identifiers if d == DOMAIN and i.startswith(prefixes)}

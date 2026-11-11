@@ -18,7 +18,7 @@ from homeassistant.components.cover import (
 from homeassistant.components.group.cover import CoverGroup
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -40,6 +40,7 @@ from .const import (
     EVT_SHADEREMOVED,
     EVT_SHADESTATE,
     REMOTE_NAME_PREFIX,
+    SOURCE_HA,
 )
 from .controller import ESPSomfyController
 from .entity import ESPSomfyEntity
@@ -484,6 +485,12 @@ class ESPSomfyGroup(CoverGroup, ESPSomfyEntity):
         """Indicates whether the shade is available."""
         return self._attr_available
 
+    @callback
+    def async_set_context(self, context: Context) -> None:
+        """A service call reaches the group: its members move for Home Assistant."""
+        super().async_set_context(context)
+        self._controller.note_own_command(self._linked_shade_ids, context)
+
     @property
     def icon(self) -> str:
         """Icon for the group."""
@@ -579,7 +586,7 @@ def build_command_event(
     """
     source = attrs.get("cmd_source", "") or ""
     source_address = int(attrs.get("cmd_address", 0) or 0)
-    remote_type = source if source in ("remote", "group", "internal") else "unknown"
+    remote_type = source if source in ("remote", "group", "internal", SOURCE_HA) else "unknown"
 
     slot: int | None = None
     remote_linked = False
@@ -776,6 +783,10 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
         if "direction" in data and self._direction != data.get("direction", 0):
             self._direction = int(data["direction"])
             upd = True
+        if "direction" in data:
+            self._controller.own_shade_moving(
+                self._shade_id, int(data["direction"]) != 0
+            )
         if "target" in data and self._state_attributes.get("target", -1) != data.get(
             "target", 0
         ):
@@ -866,6 +877,17 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
     def _fire_command_event(self) -> None:
         """Build and fire the enriched command event for this shade."""
         self._state_attributes["cmd_fired"] = dt_util.as_timestamp(dt_util.utcnow())
+        context = None
+        if self._state_attributes.get("cmd_source") == "remote":
+            # Someone took the shade over by hand: what follows is theirs.
+            self._controller.clear_own_command(self._shade_id)
+        else:
+            own, context = self._controller.own_command(self._shade_id)
+            # The board reports its own commands as "internal", whoever asked.
+            # The ones Home Assistant sent carry its context, so the logbook
+            # and the automations know which automation or user moved it.
+            if own and self._state_attributes.get("cmd_source") == "internal":
+                self._state_attributes["cmd_source"] = SOURCE_HA
         self.hass.bus.async_fire(
             EVENT_SHADE_COMMAND,
             build_command_event(
@@ -876,7 +898,14 @@ class ESPSomfyShade(ESPSomfyEntity, CoverEntity):
                 self.entity_id,
                 self._state_attributes,
             ),
+            context=context,
         )
+
+    @callback
+    def async_set_context(self, context: Context) -> None:
+        """A service call reaches this shade: what it sends is Home Assistant's."""
+        super().async_set_context(context)
+        self._controller.note_own_command([self._shade_id], context)
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""

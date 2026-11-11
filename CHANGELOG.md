@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.5.0
 
 ### Changed
 - **A group shows what it moves.** Its class follows its members: a group
@@ -10,9 +10,55 @@
   covering. A `make_up` attribute counts the members of each kind
   (`{"shutter": 4, "gate": 1}`).
 
+- **Each remote is a device of its own**, under the board, named after its
+  shade and renamable. A remote linked to several shades was only shown on
+  the first one. Its event entity, its id and its history stay the same.
+- **Commands sent by Home Assistant say so.** The board reports them as
+  `internal`, like the ones from its own web page. The command event, the
+  `cmd_source` attribute and the triggers now give `home_assistant` for
+  those, and the event carries the context of the call, so the logbook
+  shows which automation or user moved the shade. A shade Home Assistant
+  set moving stays credited to it until it stops; a remote press takes it
+  back. Automations that filtered on `internal` to catch Home Assistant's
+  own commands must use `home_assistant` instead.
+
 ### Added
 - **A repair warns about a group that mixes window coverings with a gate or
   a garage door**: one command moves them all.
+- **Spare remotes become scene switches** (firmware 4.3.0). "Add remote" on the
+  integration page listens for 30 seconds: press a button of a remote the
+  board drives nothing with, name it, and it becomes a device with one
+  trigger per button. Removing it from the integration page removes it.
+- **Short and long presses** (firmware 4.3.0). The board now reports when a
+  button is pressed and when it is released: up, down and My also fire
+  `up_short` / `up_long` and so on, the long press as soon as the button is
+  held for a second. On a remote device, each one is a device trigger.
+- **Device triggers per button** on remote devices ("Up pressed", "My held
+  down"...), and the shade trigger can be narrowed to one command and picks
+  the remote by name instead of a number.
+- **"Once per press"** for the integration trigger: a remote that drives
+  several shades reports a press for each, the automation can run once.
+- **"Go to favorite position"** button per shade and group, and a
+  **"Favorite position"** setting per shade: setting it moves the shade there
+  and stores it in the motor, as holding My on the remote does.
+- **"Last start"** diagnostic sensor with the reason of the restart, and a
+  repair when the board restarted after a crash or a watchdog (firmware 4.3.0).
+- **A repair when the board also publishes its shades over MQTT discovery**,
+  which shows every shade twice in Home Assistant (firmware 4.3.0).
+
+### Fixed
+- **The Restart and Backup device actions were missing** outside English:
+  they were found by the end of the entity id, which follows the language
+  of Home Assistant (`button.espsomfyrts_sauvegarder`).
+- **"Check for updates" in Settings > Updates now asks the board.** It did
+  nothing for the firmware entity, which only learned about a new release at
+  the board's daily check. The board now fetches its releases from GitHub
+  right away (not while a shade moves).
+- **Ready for Home Assistant 2027.8.** Home Assistant 2026.10 deprecated
+  two ways of reaching the device registry that stop working in 2027.8: a
+  device placed under the board by its identifier (`via_device`), and
+  `async_get_device`. The integration logged a warning for both on every
+  start; it now uses `via_device_id` and `async_get_device_by_identifier`.
 
 ## 4.4.1
 

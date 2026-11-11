@@ -99,6 +99,9 @@
       },
       "backup": {
         "name": "Sauvegarder"
+      },
+      "my_position": {
+        "name": "Aller à la position favorite"
       }
     },
     "update": {
@@ -175,6 +178,27 @@
             }
           }
         }
+      },
+      "last_boot": {
+        "name": "Dernier démarrage",
+        "state_attributes": {
+          "reset_reason": {
+            "name": "Cause du redémarrage",
+            "state": {
+              "poweron": "Mise sous tension",
+              "external": "Bouton de réinitialisation",
+              "software": "Redémarrage",
+              "panic": "Plantage",
+              "int_wdt": "Chien de garde (interruption)",
+              "task_wdt": "Chien de garde (tâche)",
+              "wdt": "Chien de garde",
+              "deepsleep": "Réveil de veille profonde",
+              "brownout": "Chute d'alimentation",
+              "sdio": "SDIO",
+              "unknown": "Inconnue"
+            }
+          }
+        }
       }
     },
     "switch": {
@@ -187,7 +211,41 @@
     },
     "event": {
       "remote": {
-        "name": "Télécommande {slot}"
+        "name": "Télécommande",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "down": "Descendre",
+              "down_long": "Descendre : appui long",
+              "down_short": "Descendre : appui court",
+              "favorite": "Favori",
+              "flag": "Mode soleil désactivé",
+              "my": "My",
+              "my_down": "My + Descendre",
+              "my_long": "My : appui long",
+              "my_short": "My : appui court",
+              "my_up": "My + Monter",
+              "my_up_down": "My + Monter + Descendre",
+              "prog": "Prog",
+              "sensor": "Capteur",
+              "step_down": "Pas vers le bas",
+              "step_up": "Pas vers le haut",
+              "stop": "Stop",
+              "sun_flag": "Mode soleil activé",
+              "toggle": "Bascule",
+              "unknown": "Inconnu",
+              "up": "Monter",
+              "up_down": "Monter + Descendre",
+              "up_long": "Monter : appui long",
+              "up_short": "Monter : appui court"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "my_position": {
+        "name": "Position favorite"
       }
     }
   },
@@ -388,6 +446,14 @@
     "group_mixed": {
       "title": "Le groupe {group} fait aussi bouger un portail ou une porte de garage",
       "description": "Le groupe **{group}** de {device} réunit des volets et un portail ou une porte de garage : une seule commande les fait tous bouger. Home Assistant traite donc tout le groupe comme un portail ou une porte de garage, et les assistants vocaux demandent une confirmation avant de l'ouvrir. Si ce n'est pas voulu, retirez le portail ou la porte de garage du groupe sur la carte."
+    },
+    "mqtt_duplicates": {
+      "title": "{device} publie aussi ses volets par MQTT",
+      "description": "La découverte MQTT de la carte est active : Home Assistant affiche chaque volet deux fois, une par cette intégration et une par MQTT. Décochez « Publier découverte » dans la page MQTT de la carte ({url}), puis supprimez les appareils MQTT en double."
+    },
+    "unexpected_restart": {
+      "title": "{device} a redémarré tout seul",
+      "description": "La carte a démarré à {time} après un plantage (cause : {reason}). Si cela se reproduit, notez ce qui se passait à ce moment et ouvrez un ticket avec les diagnostics de cette intégration. Ignorez cette réparation une fois lue."
     }
   },
   "selector": {
@@ -405,17 +471,52 @@
       "options": {
         "remote": "Une télécommande physique",
         "group": "Un groupe",
-        "internal": "Home Assistant ou la carte"
+        "internal": "La carte elle-même (page web, MQTT)",
+        "home_assistant": "Home Assistant"
+      }
+    },
+    "command": {
+      "options": {
+        "up": "Monter",
+        "down": "Descendre",
+        "my": "My",
+        "stop": "Stop",
+        "my_up": "My + Monter",
+        "my_down": "My + Descendre",
+        "up_down": "Monter + Descendre",
+        "my_up_down": "My + Monter + Descendre",
+        "step_up": "Pas vers le haut",
+        "step_down": "Pas vers le bas",
+        "prog": "Prog",
+        "sun_flag": "Mode soleil activé",
+        "flag": "Mode soleil désactivé",
+        "toggle": "Bascule",
+        "favorite": "Favori",
+        "sensor": "Capteur"
       }
     }
   },
   "device_automation": {
     "trigger_type": {
-      "command_received": "{entity_name} a reçu une commande"
+      "command_received": "{entity_name} a reçu une commande",
+      "up": "Monter appuyé",
+      "down": "Descendre appuyé",
+      "my": "My appuyé",
+      "my_up": "My + Monter appuyé",
+      "my_down": "My + Descendre appuyé",
+      "up_down": "Monter + Descendre appuyé",
+      "prog": "Prog appuyé",
+      "up_short": "Monter : appui court",
+      "up_long": "Monter : appui long",
+      "down_short": "Descendre : appui court",
+      "down_long": "Descendre : appui long",
+      "my_short": "My : appui court",
+      "my_long": "My : appui long"
     },
     "extra_fields": {
       "source": "Source",
-      "remote_address": "Adresse de la télécommande"
+      "remote_address": "Adresse de la télécommande",
+      "command": "Commande"
     }
   },
   "triggers": {
@@ -425,12 +526,49 @@
       "fields": {
         "source": {
           "name": "Source",
-          "description": "Ne démarrer que pour les commandes venant de cette source."
+          "description": "Ne démarrer que pour les commandes de cette source. Home Assistant : une commande envoyée par cette intégration ; la carte elle-même : sa page web ou MQTT."
         },
         "remote_address": {
           "name": "Adresse de la télécommande",
           "description": "Ne démarrer que pour les commandes venant de cette adresse (télécommande dédiée ou groupe)."
+        },
+        "command": {
+          "name": "Commande",
+          "description": "Ne démarrer que pour cette commande."
+        },
+        "once_per_press": {
+          "name": "Une fois par appui",
+          "description": "Une télécommande qui pilote plusieurs volets signale un appui pour chacun d'eux : ne lancer qu'une fois par appui."
         }
+      }
+    }
+  },
+  "config_subentries": {
+    "remote": {
+      "initiate_flow": {
+        "user": "Ajouter une télécommande"
+      },
+      "entry_type": "Télécommande",
+      "progress": {
+        "press_remote": "Appuyez sur un bouton de la télécommande à ajouter, près de la carte. Attente de 30 secondes."
+      },
+      "step": {
+        "not_heard": {
+          "title": "Aucune nouvelle télécommande entendue",
+          "description": "La carte n'a entendu aucune nouvelle télécommande en 30 secondes. Vérifiez qu'elle est à portée et que sa pile fonctionne, puis validez pour écouter à nouveau. Une télécommande déjà liée à un volet sur la carte a déjà son appareil et n'est pas proposée ici."
+        },
+        "name": {
+          "title": "Nommer la télécommande",
+          "description": "Télécommande {address} entendue. Donnez-lui un nom : elle devient un appareil dans Home Assistant, avec un déclencheur par bouton.",
+          "data": {
+            "name": "Nom"
+          }
+        }
+      },
+      "abort": {
+        "not_loaded": "La carte n'est pas chargée, réessayez une fois qu'elle est connectée.",
+        "firmware_too_old": "L'ajout d'une télécommande demande le firmware 4.3 ou plus récent sur la carte.",
+        "already_configured": "Cette télécommande est déjà ajoutée."
       }
     }
   }

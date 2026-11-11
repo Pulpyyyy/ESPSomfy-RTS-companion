@@ -11,6 +11,18 @@ from .const import DOMAIN, MANUFACTURER, VERSION
 from .controller import ESPSomfyController
 
 
+# Home Assistant 2026.10 deprecates via_device (an identifier, removed in
+# 2027.8) for via_device_id (the registry id of the parent device).
+_HAS_VIA_DEVICE_ID = "via_device_id" in getattr(DeviceInfo, "__annotations__", {})
+
+
+def board_link(controller: ESPSomfyController) -> dict[str, Any]:
+    """The DeviceInfo field that hangs a device under the board."""
+    if _HAS_VIA_DEVICE_ID and controller.board_device_id:
+        return {"via_device_id": controller.board_device_id}
+    return {"via_device": (DOMAIN, controller.unique_id)}
+
+
 class ESPSomfyEntity(CoordinatorEntity[ESPSomfyController], Entity):
     """Base entity for the ESPSomfy controller."""
 
@@ -34,7 +46,7 @@ class ESPSomfyEntity(CoordinatorEntity[ESPSomfyController], Entity):
                 name=self._data.get("name", f"Group {group_id}"),
                 manufacturer=MANUFACTURER,
                 model="ESPSomfy-RTS Group",
-                via_device=(DOMAIN, self.controller.unique_id),
+                **board_link(self.controller),
                 # "Visit" opens the groups page of the board's web interface.
                 configuration_url=f"{self.controller.api.get_config_url()}/#divSomfyGroups",
             )
@@ -47,7 +59,7 @@ class ESPSomfyEntity(CoordinatorEntity[ESPSomfyController], Entity):
                 name=self._data.get("name", f"Shade {shade_id}"),
                 manufacturer=MANUFACTURER,
                 model="ESPSomfy-RTS Device",
-                via_device=(DOMAIN, self.controller.unique_id),
+                **board_link(self.controller),
                 # "Visit" opens the shades page of the board's web interface.
                 configuration_url=f"{self.controller.api.get_config_url()}/#pgShades",
                 # Firmware room as the initial HA area: only honoured when the

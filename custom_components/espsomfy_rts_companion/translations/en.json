@@ -99,6 +99,9 @@
       },
       "backup": {
         "name": "Backup"
+      },
+      "my_position": {
+        "name": "Go to favorite position"
       }
     },
     "update": {
@@ -175,6 +178,27 @@
             }
           }
         }
+      },
+      "last_boot": {
+        "name": "Last start",
+        "state_attributes": {
+          "reset_reason": {
+            "name": "Reset reason",
+            "state": {
+              "poweron": "Power on",
+              "external": "Reset button",
+              "software": "Restart",
+              "panic": "Crash",
+              "int_wdt": "Watchdog (interrupt)",
+              "task_wdt": "Watchdog (task)",
+              "wdt": "Watchdog",
+              "deepsleep": "Wake from deep sleep",
+              "brownout": "Power drop",
+              "sdio": "SDIO",
+              "unknown": "Unknown"
+            }
+          }
+        }
       }
     },
     "switch": {
@@ -187,7 +211,41 @@
     },
     "event": {
       "remote": {
-        "name": "Remote {slot}"
+        "name": "Remote",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "down": "Down",
+              "down_long": "Down held down",
+              "down_short": "Down short press",
+              "favorite": "Favorite",
+              "flag": "Sun mode off",
+              "my": "My",
+              "my_down": "My + Down",
+              "my_long": "My held down",
+              "my_short": "My short press",
+              "my_up": "My + Up",
+              "my_up_down": "My + Up + Down",
+              "prog": "Prog",
+              "sensor": "Sensor",
+              "step_down": "Step down",
+              "step_up": "Step up",
+              "stop": "Stop",
+              "sun_flag": "Sun mode on",
+              "toggle": "Toggle",
+              "unknown": "Unknown",
+              "up": "Up",
+              "up_down": "Up + Down",
+              "up_long": "Up held down",
+              "up_short": "Up short press"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "my_position": {
+        "name": "Favorite position"
       }
     }
   },
@@ -388,6 +446,14 @@
     "group_mixed": {
       "title": "Group {group} also moves a gate or a garage door",
       "description": "The group **{group}** of {device} holds window coverings together with a gate or a garage door: one command moves them all. Home Assistant therefore treats the whole group as a gate or a garage door, and voice assistants ask for confirmation before opening it. If that is not what you want, remove the gate or the garage door from the group on the board."
+    },
+    "mqtt_duplicates": {
+      "title": "{device} also publishes its shades over MQTT",
+      "description": "The MQTT discovery of the board is on, so Home Assistant shows every shade twice: once from this integration and once from MQTT. Turn off \"Publish Discovery\" on the MQTT page of the board ({url}), then delete the duplicate MQTT devices."
+    },
+    "unexpected_restart": {
+      "title": "{device} restarted on its own",
+      "description": "The board started at {time} after a crash (reset reason: {reason}). If it happens again, note what was going on at that moment and open an issue with the diagnostics of this integration. Ignore this repair once you have read it."
     }
   },
   "selector": {
@@ -405,17 +471,52 @@
       "options": {
         "remote": "A physical remote",
         "group": "A group",
-        "internal": "Home Assistant or the board"
+        "internal": "The board itself (web page, MQTT)",
+        "home_assistant": "Home Assistant"
+      }
+    },
+    "command": {
+      "options": {
+        "up": "Up",
+        "down": "Down",
+        "my": "My",
+        "stop": "Stop",
+        "my_up": "My + Up",
+        "my_down": "My + Down",
+        "up_down": "Up + Down",
+        "my_up_down": "My + Up + Down",
+        "step_up": "Step up",
+        "step_down": "Step down",
+        "prog": "Prog",
+        "sun_flag": "Sun mode on",
+        "flag": "Sun mode off",
+        "toggle": "Toggle",
+        "favorite": "Favorite",
+        "sensor": "Sensor"
       }
     }
   },
   "device_automation": {
     "trigger_type": {
-      "command_received": "{entity_name} received a command"
+      "command_received": "{entity_name} received a command",
+      "up": "Up pressed",
+      "down": "Down pressed",
+      "my": "My pressed",
+      "my_up": "My + Up pressed",
+      "my_down": "My + Down pressed",
+      "up_down": "Up + Down pressed",
+      "prog": "Prog pressed",
+      "up_short": "Up short press",
+      "up_long": "Up held down",
+      "down_short": "Down short press",
+      "down_long": "Down held down",
+      "my_short": "My short press",
+      "my_long": "My held down"
     },
     "extra_fields": {
       "source": "Source",
-      "remote_address": "Remote address"
+      "remote_address": "Remote address",
+      "command": "Command"
     }
   },
   "triggers": {
@@ -425,12 +526,49 @@
       "fields": {
         "source": {
           "name": "Source",
-          "description": "Only start for commands from this source."
+          "description": "Only start for commands from this source. Home Assistant is a command this integration sent; the board itself is its web page or MQTT."
         },
         "remote_address": {
           "name": "Remote address",
           "description": "Only start for commands from this remote address (a dedicated remote or a group)."
+        },
+        "command": {
+          "name": "Command",
+          "description": "Only start for this command."
+        },
+        "once_per_press": {
+          "name": "Once per press",
+          "description": "A remote that drives several shades reports one press for each of them: run once per press instead."
         }
+      }
+    }
+  },
+  "config_subentries": {
+    "remote": {
+      "initiate_flow": {
+        "user": "Add remote"
+      },
+      "entry_type": "Remote",
+      "progress": {
+        "press_remote": "Press a button of the remote to add, near the board. Waiting 30 seconds."
+      },
+      "step": {
+        "not_heard": {
+          "title": "No new remote heard",
+          "description": "The board heard no new remote within 30 seconds. Check that the remote is in range and that its battery works, then submit to listen again. A remote already linked to a shade on the board has its device already and is not offered here."
+        },
+        "name": {
+          "title": "Name the remote",
+          "description": "Remote {address} heard. Give it a name: it becomes a device in Home Assistant, with one trigger per button.",
+          "data": {
+            "name": "Name"
+          }
+        }
+      },
+      "abort": {
+        "not_loaded": "The board is not loaded, try again once it is connected.",
+        "firmware_too_old": "Adding a remote needs firmware 4.3 or later on the board.",
+        "already_configured": "This remote is already added."
       }
     }
   }
