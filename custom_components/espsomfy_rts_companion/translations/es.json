@@ -384,6 +384,10 @@
     "firmware_outdated": {
       "title": "Firmware {version} en {device}",
       "description": "{device} ejecuta el firmware {version}. ESPSomfy-RTS Companion está hecho para el firmware ESPSomfy-RTS v4: órdenes en cola enviadas en un tren continuo, escucha antes de emitir, diagnóstico de radio, actualizaciones desde GitHub. Instálalo desde tu navegador con el enlace de abajo, tras una copia de seguridad de la placa."
+    },
+    "group_mixed": {
+      "title": "El grupo {group} también mueve un portón o una puerta de garaje",
+      "description": "El grupo **{group}** de {device} reúne persianas con un portón o una puerta de garaje: una sola orden los mueve todos. Home Assistant trata por tanto todo el grupo como un portón o una puerta de garaje, y los asistentes de voz piden confirmación antes de abrirlo. Si no es lo que quieres, quita el portón o la puerta de garaje del grupo en la placa."
     }
   },
   "selector": {

@@ -384,6 +384,10 @@
     "firmware_outdated": {
       "title": "Firmware {version} on {device}",
       "description": "{device} runs firmware {version}. ESPSomfy-RTS Companion is made for the ESPSomfy-RTS v4 firmware: queued orders sent as one continuous train, listen before transmit, radio diagnostics, updates from GitHub. Install it from your browser with the link below, after a backup of the board."
+    },
+    "group_mixed": {
+      "title": "Group {group} also moves a gate or a garage door",
+      "description": "The group **{group}** of {device} holds window coverings together with a gate or a garage door: one command moves them all. Home Assistant therefore treats the whole group as a gate or a garage door, and voice assistants ask for confirmation before opening it. If that is not what you want, remove the gate or the garage door from the group on the board."
     }
   },
   "selector": {

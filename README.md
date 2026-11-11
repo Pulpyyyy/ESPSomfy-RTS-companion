@@ -57,7 +57,7 @@ Taking over by hand: if you would rather not use the takeover step, decline it o
 
 ## Features
 
-* **Full control**: open, close, stop and set positions in percent, tilt included, for shades and groups.
+* **Full control**: open, close, stop and set positions in percent, tilt included, for shades and groups. A group takes the class of what it moves: one holding a gate or a garage door is one for Home Assistant and voice assistants, and a repair warns when it also holds window coverings.
 * **Always in sync**: positions follow the board in real time, whether the order came from Home Assistant, a remote or the board's own interface.
 * **Rooms and groups in step**: the board's rooms are Home Assistant areas, both ways. Move a shade to another area, or rename an area, and the board follows; change a room on the board and Home Assistant follows. When a shade sits in a different room on each side, nothing is changed: a repair asks which side to keep. The board's groups show up as labels on their shades. It can be turned off in the integration options.
 * **One click to the board**: the board, each shade and each group link to the matching page of the board's web interface (**Visit** on the device page).

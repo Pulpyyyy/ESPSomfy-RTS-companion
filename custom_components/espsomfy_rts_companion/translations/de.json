@@ -384,6 +384,10 @@
     "firmware_outdated": {
       "title": "Firmware {version} auf {device}",
       "description": "{device} läuft mit Firmware {version}. ESPSomfy-RTS Companion ist für die Firmware ESPSomfy-RTS v4 gemacht: Befehle in einer Warteschlange und als ein durchgehender Zug gesendet, Hören vor dem Senden, Funkdiagnose, Updates von GitHub. Installiere sie über den Link unten im Browser, nach einer Sicherung der Platine."
+    },
+    "group_mixed": {
+      "title": "Die Gruppe {group} bewegt auch ein Tor oder ein Garagentor",
+      "description": "Die Gruppe **{group}** von {device} enthält Rollläden zusammen mit einem Tor oder einem Garagentor: ein Befehl bewegt sie alle. Home Assistant behandelt daher die ganze Gruppe als Tor oder Garagentor, und Sprachassistenten fragen vor dem Öffnen nach einer Bestätigung. Wenn das nicht gewollt ist, entfernen Sie das Tor oder Garagentor auf der Platine aus der Gruppe."
     }
   },
   "selector": {

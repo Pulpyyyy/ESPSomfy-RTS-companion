@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **A group shows what it moves.** Its class follows its members: a group
+  that holds a gate or a garage door is a gate or a garage door for Home
+  Assistant, so voice assistants ask before opening it, as they do for the
+  device itself; otherwise it takes the class of its most numerous
+  covering. A `make_up` attribute counts the members of each kind
+  (`{"shutter": 4, "gate": 1}`).
+
+### Added
+- **A repair warns about a group that mixes window coverings with a gate or
+  a garage door**: one command moves them all.
+
 ## 4.4.1
 
 ### Fixed
